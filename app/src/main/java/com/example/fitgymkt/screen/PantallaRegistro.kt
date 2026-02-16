@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PantallaRegistro(
     alVolverAlLogin: () -> Unit,
-    alRegistroCompletado: () -> Unit
+    alRegistroCompletado: (Int, String) -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
@@ -189,7 +189,7 @@ fun PantallaRegistro(
                                 when (result) {
                                     is RegisterResult.Success -> {
                                         snackbarHostState.showSnackbar("Cuenta creada correctamente")
-                                        alRegistroCompletado()
+                                        alRegistroCompletado(result.userId, result.userName)
                                     }
 
                                     is RegisterResult.Error -> {

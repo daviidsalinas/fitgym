@@ -160,23 +160,34 @@ class FitGymRepository(context: Context) {
             return LoginResult.Error("Formato de email no válido")
         }
 
-        val db = dbHelper.readableDatabase
-        val storedPassword = db.rawQuery(
-            "SELECT contraseña FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
-            arrayOf(normalizedEmail)
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
+        val loginRow = try {
+            val db = dbHelper.readableDatabase
+            db.rawQuery(
+                "SELECT id_usuario, nombre, contraseña FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
+                arrayOf(normalizedEmail)
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    LoginRow(
+                        userId = cursor.getInt(0),
+                        userName = cursor.getString(1),
+                        storedPassword = cursor.getString(2)
+                    )
+                } else {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            return LoginResult.Error("No se pudo acceder a la base de datos")
         }
 
         return when {
-            storedPassword == null -> LoginResult.Error("No existe una cuenta con ese email")
-            storedPassword != password -> LoginResult.Error("Contraseña incorrecta")
-            else -> LoginResult.Success
+            loginRow == null -> LoginResult.Error("No existe una cuenta con ese email")
+            loginRow.storedPassword != password -> LoginResult.Error("Contraseña incorrecta")
+            else -> LoginResult.Success(userId = loginRow.userId, userName = loginRow.userName)
         }
     }
 
     fun register(nombreCompleto: String, email: String, telefono: String, password: String): RegisterResult {
-        val db = dbHelper.writableDatabase
 
         val normalizedEmail = email.trim()
         val fullName = nombreCompleto.trim().replace(Regex("\\s+"), " ")
@@ -193,10 +204,20 @@ class FitGymRepository(context: Context) {
             return RegisterResult.Error("La contraseña debe tener al menos 6 caracteres")
         }
 
-        val emailExists = db.rawQuery(
-            "SELECT 1 FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
-            arrayOf(normalizedEmail)
-        ).use { it.moveToFirst() }
+        val db = try {
+            dbHelper.writableDatabase
+        } catch (e: Exception) {
+            return RegisterResult.Error("No se pudo acceder a la base de datos")
+        }
+
+        val emailExists = try {
+            db.rawQuery(
+                "SELECT 1 FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
+                arrayOf(normalizedEmail)
+            ).use { it.moveToFirst() }
+        } catch (e: Exception) {
+            return RegisterResult.Error("No se pudo acceder a la base de datos")
+        }
 
         if (emailExists) {
             return RegisterResult.Error("Ya existe una cuenta con ese email")
@@ -234,7 +255,7 @@ class FitGymRepository(context: Context) {
             }
 
             db.setTransactionSuccessful()
-            RegisterResult.Success
+            RegisterResult.Success(userId.toInt(), nombre)
         } catch (e: Exception) {
             RegisterResult.Error("No se pudo registrar el usuario")
         } finally {
@@ -289,14 +310,20 @@ class FitGymRepository(context: Context) {
         val occupiedSlots: Int,
         val instructorName: String
     )
+
+    private data class LoginRow(
+        val userId: Int,
+        val userName: String,
+        val storedPassword: String
+    )
 }
 
 sealed class LoginResult {
-    data object Success : LoginResult()
+    data class Success(val userId: Int, val userName: String) : LoginResult()
     data class Error(val message: String) : LoginResult()
 }
 
 sealed class RegisterResult {
-    data object Success : RegisterResult()
+    data class Success(val userId: Int, val userName: String) : RegisterResult()
     data class Error(val message: String) : RegisterResult()
 }
