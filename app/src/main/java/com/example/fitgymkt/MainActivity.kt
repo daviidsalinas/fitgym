@@ -38,6 +38,8 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = colores) {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
+                var usuarioSesion by remember { mutableStateOf<UsuarioSesion?>(null) }
+
 
                 // 2. Diálogo Global de Notificaciones
                 if (mostrarNotificaciones) {
@@ -48,12 +50,18 @@ class MainActivity : ComponentActivity() {
                     drawerState = drawerState,
                     drawerContent = {
                         ContenidoMenuLateral(
+                            nombreUsuario = usuarioSesion?.userName ?: "Invitado",
                             alCerrar = { scope.launch { drawerState.close() } },
-                            alCerrarSesion = { scope.launch { drawerState.close() } }
+                            alCerrarSesion = {
+                                usuarioSesion = null
+                                scope.launch { drawerState.close() }
+                            }
                         )
                     }
                 ) {
                     NavegacionPrincipal(
+                        usuarioSesion = usuarioSesion,
+                        alCambiarSesion = { usuarioSesion = it },
                         modoOscuroActual = esModoOscuro,
                         alCambiarModoOscuro = { esModoOscuro = it },
                         alAbrirMenu = { scope.launch { drawerState.open() } },
@@ -67,6 +75,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NavegacionPrincipal(
+    usuarioSesion: UsuarioSesion?,
+    alCambiarSesion: (UsuarioSesion?) -> Unit,
     modoOscuroActual: Boolean,
     alCambiarModoOscuro: (Boolean) -> Unit,
     alAbrirMenu: () -> Unit,
@@ -74,11 +84,20 @@ fun NavegacionPrincipal(
 ) {
     val controladorNavegacion = rememberNavController()
 
-    NavHost(navController = controladorNavegacion, startDestination = "login") {
+    LaunchedEffect(usuarioSesion) {
+        if (usuarioSesion == null && controladorNavegacion.currentDestination?.route != "login") {
+            controladorNavegacion.navigate("login") {
+                popUpTo(controladorNavegacion.graph.id) { inclusive = true }
+            }
+        }
+    }
+
+    NavHost(navController = controladorNavegacion, startDestination = if (usuarioSesion == null) "login" else "inicio") {
         composable("login") {
             PantallaLogin(
                 alIrARegistro = { controladorNavegacion.navigate("registro") },
-                alEntrarApp = {
+                alEntrarApp = { userId, userName ->
+                    alCambiarSesion(UsuarioSesion(userId = userId, userName = userName))
                     controladorNavegacion.navigate("inicio") { popUpTo("login") { inclusive = true } }
                 }
             )
@@ -86,11 +105,16 @@ fun NavegacionPrincipal(
         composable("registro") {
             PantallaRegistro(
                 alVolverAlLogin = { controladorNavegacion.popBackStack() },
-                alRegistroCompletado = { controladorNavegacion.popBackStack() }
+                alRegistroCompletado = { userId, userName ->
+                    alCambiarSesion(UsuarioSesion(userId = userId, userName = userName))
+                    controladorNavegacion.navigate("inicio") { popUpTo("login") { inclusive = true } }
+                }
+
             )
         }
         composable("inicio") {
             PantallaInicio(
+                userId = usuarioSesion?.userId ?: 1,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAClases = { controladorNavegacion.navigate("clases") },
@@ -202,7 +226,7 @@ fun ItemNoti(titulo: String, desc: String, tiempo: String, esNueva: Boolean) {
 }
 
 @Composable
-fun ContenidoMenuLateral(alCerrar: () -> Unit, alCerrarSesion: () -> Unit) {
+fun ContenidoMenuLateral(nombreUsuario: String, alCerrar: () -> Unit, alCerrarSesion: () -> Unit) {
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
         drawerContainerColor = MaterialTheme.colorScheme.surface
@@ -217,8 +241,7 @@ fun ContenidoMenuLateral(alCerrar: () -> Unit, alCerrarSesion: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text("Carlos Martínez", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text("Plan Premium", color = Color.Gray, fontSize = 12.sp)
+                    Text(nombreUsuario, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             }
             Spacer(modifier = Modifier.height(40.dp))
@@ -238,6 +261,11 @@ fun ContenidoMenuLateral(alCerrar: () -> Unit, alCerrarSesion: () -> Unit) {
         }
     }
 }
+
+data class UsuarioSesion(
+    val userId: Int,
+    val userName: String
+)
 
 @Composable
 fun ItemMenuLateral(icono: ImageVector, texto: String) {

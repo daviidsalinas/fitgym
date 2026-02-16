@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaInicio(
+    userId: Int,
     alAbrirMenu: () -> Unit,
     alAbrirNotificaciones: () -> Unit,
     alIrAClases: () -> Unit,
@@ -37,8 +38,8 @@ fun PantallaInicio(
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
 
-    val homeData by produceState<HomeData?>(initialValue = null) {
-        value = withContext(Dispatchers.IO) { repository.getHomeData(userId = 1) }
+    val homeData by produceState<HomeData?>(initialValue = null, userId) {
+        value = withContext(Dispatchers.IO) { repository.getHomeData(userId = userId) }
     }
 
     Scaffold(
