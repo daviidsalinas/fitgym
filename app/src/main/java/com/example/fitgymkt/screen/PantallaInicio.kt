@@ -2,8 +2,6 @@ package com.example.fitgymkt.screen
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,25 +9,38 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.example.fitgymkt.model.ui.HomeData
+import com.example.fitgymkt.repository.FitGymRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaInicio(
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit, // <--- 1. Nuevo parámetro para el diálogo global
+    alAbrirNotificaciones: () -> Unit,
     alIrAClases: () -> Unit,
     alIrAAnalisis: () -> Unit,
     alIrAPerfil: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { FitGymRepository(context) }
+
+    val homeData by produceState<HomeData?>(initialValue = null) {
+        value = withContext(Dispatchers.IO) { repository.getHomeData(userId = 1) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -40,7 +51,6 @@ fun PantallaInicio(
                     }
                 },
                 actions = {
-                    // 2. Ahora la campana es un botón que dispara el diálogo
                     IconButton(onClick = alAbrirNotificaciones) {
                         BadgedBox(badge = { Badge { Text("2") } }) {
                             Icon(Icons.Default.Notifications, null)
@@ -59,6 +69,14 @@ fun PantallaInicio(
             }
         }
     ) { padding ->
+        if (homeData == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        val data = homeData!!
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -68,7 +86,7 @@ fun PantallaInicio(
         ) {
             // Bienvenida
             Text(
-                "¡Hola, Carlos!",
+                "¡Hola, ${data.userName}!",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -79,8 +97,8 @@ fun PantallaInicio(
 
             // Resumen de Actividad
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TarjetaResumen("Calorías", "450 kcal", Icons.Default.Whatshot, Color(0xFFFFEBEB), Color(0xFFFF5252), Modifier.weight(1f))
-                TarjetaResumen("Tiempo", "1.2 h", Icons.Default.Timer, Color(0xFFEBF5FF), Color(0xFF3B82F6), Modifier.weight(1f))
+                TarjetaResumen("Calorías", "${data.calories} kcal", Icons.Default.Whatshot, Color(0xFFFFEBEB), Color(0xFFFF5252), Modifier.weight(1f))
+                TarjetaResumen("Tiempo", data.trainingHours, Icons.Default.Timer, Color(0xFFEBF5FF), Color(0xFF3B82F6), Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -88,12 +106,30 @@ fun PantallaInicio(
             // Sección Clases de Hoy
             SeccionCabecera("Clases de hoy", alIrAClases)
 
-            // Lista de clases (Simulada)
+            // Lista de clases
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                ItemClaseHoy("Yoga Flow", "08:00 AM", "Sala 1", Icons.Default.SelfImprovement)
-                ItemClaseHoy("CrossFit", "18:00 PM", "Box A", Icons.Default.FitnessCenter)
+                if (data.todayClasses.isEmpty()) {
+                    Text("No hay clases reservadas", color = Color.Gray)
+                } else {
+                    data.todayClasses.forEach { clase ->
+                        ItemClaseHoy(
+                            nombre = clase.className,
+                            hora = clase.startTime,
+                            sala = clase.roomName,
+                            icono = iconByClass(clase.className)
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+private fun iconByClass(className: String): ImageVector {
+    return when {
+        className.contains("yoga", ignoreCase = true) -> Icons.Default.SelfImprovement
+        className.contains("pilates", ignoreCase = true) -> Icons.Default.AccessibilityNew
+        else -> Icons.Default.FitnessCenter
     }
 }
 
@@ -103,7 +139,7 @@ fun TarjetaResumen(titulo: String, valor: String, icono: ImageVector, fondoIcono
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) // Adaptado al tema
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Box(modifier = Modifier.size(40.dp).background(fondoIcono, CircleShape), contentAlignment = Alignment.Center) {

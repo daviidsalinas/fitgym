@@ -5,8 +5,8 @@
 -- -------------------------------
 -- USUARIOS
 -- -------------------------------
-INSERT INTO USUARIO (ID, Nombre, Apellidos, Email, Contraseña, FotoPerfil)
-VALUES 
+INSERT INTO USUARIO (id_usuario, Nombre, Apellidos, Email, Contraseña, FotoPerfil)
+VALUES
 (1, 'David', 'Salinas', 'david@gmail.com', 'pass123', 'david.jpg'),
 (2, 'Pepe', 'Barbera', 'pepe@gmail.com', 'pass456', 'pepe.jpg'),
 (3, 'Miguel', 'Lopez', 'miguel@gmail.com', 'pass789', 'miguel.jpg');
@@ -74,7 +74,7 @@ VALUES
 -- -------------------------------
 -- HORARIO_CLASE
 -- -------------------------------
-INSERT INTO HORARIO_CLASE (id_horario, id_clase, id_instructor, id_sala, fecha, hora_inicio, hora_fin, plazas_totales)
+INSERT INTO HORARIO_CLASE (id_horario, id_clase, id_monitor, id_sala, fecha, hora_inicio, hora_fin, plazas_totales)
 VALUES
 (1, 1, 3, 1, '2026-01-25', '08:00', '09:00', 15),
 (2, 1, 3, 1, '2026-01-25', '18:00', '19:00', 15),
