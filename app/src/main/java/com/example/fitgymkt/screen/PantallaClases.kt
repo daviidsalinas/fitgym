@@ -2,7 +2,7 @@ package com.example.fitgymkt.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -15,9 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitgymkt.model.ui.ClassWithSchedules
+import com.example.fitgymkt.repository.FitGymRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,11 +32,18 @@ fun PantallaClases(
     alIrAAnalisis: () -> Unit,
     alIrAPerfil: () -> Unit,
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit // <--- 1. Nuevo parámetro añadido
+    alAbrirNotificaciones: () -> Unit
 ) {
-    val dias = listOf("Todos", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes")
+    val context = LocalContext.current
+    val repository = remember(context) { FitGymRepository(context) }
+
+    val dias = listOf("Todos", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
     var diaSeleccionado by remember { mutableStateOf("Todos") }
-    var claseExpandida by remember { mutableStateOf<String?>(null) }
+    var claseExpandida by remember { mutableStateOf<Int?>(null) }
+
+    val clases by produceState<List<ClassWithSchedules>?>(initialValue = null, key1 = diaSeleccionado) {
+        value = withContext(Dispatchers.IO) { repository.getClassesByWeekDay(diaSeleccionado) }
+    }
 
     Scaffold(
         topBar = {
@@ -43,7 +55,6 @@ fun PantallaClases(
                     }
                 },
                 actions = {
-                    // 2. Conectamos el botón de notificaciones
                     IconButton(onClick = alAbrirNotificaciones) {
                         BadgedBox(badge = { Badge { Text("2") } }) {
                             Icon(Icons.Default.Notifications, null)
@@ -103,34 +114,46 @@ fun PantallaClases(
                 }
             }
 
+            if (clases == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                return@Scaffold
+            }
+
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item {
-                    TarjetaClaseDesplegable(
-                        titulo = "Yoga",
-                        subtitulo = "Equilibrio y flexibilidad",
-                        horariosCount = "6 horarios",
-                        colorBase = Color(0xFF1A1A1A),
-                        estaExpandida = claseExpandida == "Yoga",
-                        onExpandClick = { claseExpandida = if (claseExpandida == "Yoga") null else "Yoga" },
-                        onHorarioClick = alIrADetalle
-                    )
+                if (clases!!.isEmpty()) {
+                    item { Text("No hay clases para el filtro seleccionado", color = Color.Gray) }
                 }
-                item {
+
+                items(clases!!) { clase ->
                     TarjetaClaseDesplegable(
-                        titulo = "Pilates",
-                        subtitulo = "Fortalecimiento del core",
-                        horariosCount = "5 horarios",
-                        colorBase = Color(0xFF455A64),
-                        estaExpandida = claseExpandida == "Pilates",
-                        onExpandClick = { claseExpandida = if (claseExpandida == "Pilates") null else "Pilates" },
-                        onHorarioClick = alIrADetalle
+                        titulo = clase.className,
+                        subtitulo = clase.description,
+                        horariosCount = "${clase.schedules.size} horarios",
+                        colorBase = colorByClass(clase.className),
+                        estaExpandida = claseExpandida == clase.classId,
+                        onExpandClick = {
+                            claseExpandida = if (claseExpandida == clase.classId) null else clase.classId
+                        },
+                        onHorarioClick = alIrADetalle,
+                        horarios = clase.schedules
                     )
                 }
             }
         }
+    }
+}
+
+private fun colorByClass(className: String): Color {
+    return when {
+        className.contains("yoga", ignoreCase = true) -> Color(0xFF1A1A1A)
+        className.contains("pilates", ignoreCase = true) -> Color(0xFF455A64)
+        else -> Color(0xFF37474F)
     }
 }
 
@@ -143,7 +166,8 @@ fun TarjetaClaseDesplegable(
     colorBase: Color,
     estaExpandida: Boolean,
     onExpandClick: () -> Unit,
-    onHorarioClick: () -> Unit
+    onHorarioClick: () -> Unit,
+    horarios: List<com.example.fitgymkt.model.ui.ClassScheduleItem>
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
@@ -172,9 +196,16 @@ fun TarjetaClaseDesplegable(
 
             AnimatedVisibility(visible = estaExpandida) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilaHorario("08:00", "Lunes", "5/15", "María García", onClick = onHorarioClick)
-                    FilaHorario("18:00", "Lunes", "8/15", "Ana López", onClick = onHorarioClick)
-                    FilaHorario("08:00", "Miércoles", "3/15", "María García", esCritico = true, onClick = onHorarioClick)
+                    horarios.forEach { horario ->
+                        FilaHorario(
+                            hora = horario.time,
+                            dia = horario.weekDay,
+                            plazas = "${horario.occupiedSlots}/${horario.totalSlots}",
+                            instructor = horario.instructorName,
+                            esCritico = horario.totalSlots - horario.occupiedSlots <= 3,
+                            onClick = onHorarioClick
+                        )
+                    }
                 }
             }
         }
@@ -200,7 +231,10 @@ fun FilaHorario(
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(18.dp))
-            Text(" $hora  •  $dia", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Column {
+                Text("$hora  •  $dia", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(instructor, color = Color.Gray, fontSize = 12.sp)
+            }
             Spacer(modifier = Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
