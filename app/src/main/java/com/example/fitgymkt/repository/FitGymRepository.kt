@@ -1,6 +1,8 @@
 package com.example.fitgymkt.repository
 
+import android.content.ContentValues
 import android.content.Context
+import android.util.Patterns
 import com.example.fitgymkt.data.FitGymDbHelper
 import com.example.fitgymkt.model.ui.ClassScheduleItem
 import com.example.fitgymkt.model.ui.ClassWithSchedules
@@ -148,6 +150,98 @@ class FitGymRepository(context: Context) {
             }
     }
 
+    fun login(email: String, password: String): LoginResult {
+        val normalizedEmail = email.trim()
+        if (normalizedEmail.isBlank() || password.isBlank()) {
+            return LoginResult.Error("Introduce email y contraseña")
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            return LoginResult.Error("Formato de email no válido")
+        }
+
+        val db = dbHelper.readableDatabase
+        val storedPassword = db.rawQuery(
+            "SELECT contraseña FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
+            arrayOf(normalizedEmail)
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+
+        return when {
+            storedPassword == null -> LoginResult.Error("No existe una cuenta con ese email")
+            storedPassword != password -> LoginResult.Error("Contraseña incorrecta")
+            else -> LoginResult.Success
+        }
+    }
+
+    fun register(nombreCompleto: String, email: String, telefono: String, password: String): RegisterResult {
+        val db = dbHelper.writableDatabase
+
+        val normalizedEmail = email.trim()
+        val fullName = nombreCompleto.trim().replace(Regex("\\s+"), " ")
+
+        if (fullName.isBlank() || normalizedEmail.isBlank() || password.isBlank()) {
+            return RegisterResult.Error("Completa todos los campos obligatorios")
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            return RegisterResult.Error("Formato de email no válido")
+        }
+
+        if (password.length < 6) {
+            return RegisterResult.Error("La contraseña debe tener al menos 6 caracteres")
+        }
+
+        val emailExists = db.rawQuery(
+            "SELECT 1 FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
+            arrayOf(normalizedEmail)
+        ).use { it.moveToFirst() }
+
+        if (emailExists) {
+            return RegisterResult.Error("Ya existe una cuenta con ese email")
+        }
+
+        val nameParts = fullName.split(" ", limit = 2)
+        val nombre = nameParts.first()
+        val apellidos = if (nameParts.size > 1) nameParts[1] else ""
+
+        db.beginTransaction()
+        return try {
+            val userValues = ContentValues().apply {
+                put("nombre", nombre)
+                put("apellidos", apellidos)
+                put("email", normalizedEmail)
+                put("contraseña", password)
+                put("fotoPerfil", "")
+            }
+            val userId = db.insertOrThrow("usuario", null, userValues)
+
+            val clienteValues = ContentValues().apply {
+                put("id_usuario", userId)
+                put("edad", 0)
+                put("peso", 0.0)
+                put("altura", 0.0)
+            }
+            db.insertOrThrow("cliente", null, clienteValues)
+
+            if (telefono.isNotBlank()) {
+                val telefonoValues = ContentValues().apply {
+                    put("id_usuario", userId)
+                    put("telefono", telefono.trim())
+                }
+                db.insertOrThrow("telefono_usuario", null, telefonoValues)
+            }
+
+            db.setTransactionSuccessful()
+            RegisterResult.Success
+        } catch (e: Exception) {
+            RegisterResult.Error("No se pudo registrar el usuario")
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     private fun weekDayToSqlCode(day: String): String {
         return when (day) {
             "Domingo" -> "0"
@@ -195,4 +289,14 @@ class FitGymRepository(context: Context) {
         val occupiedSlots: Int,
         val instructorName: String
     )
+}
+
+sealed class LoginResult {
+    data object Success : LoginResult()
+    data class Error(val message: String) : LoginResult()
+}
+
+sealed class RegisterResult {
+    data object Success : RegisterResult()
+    data class Error(val message: String) : RegisterResult()
 }

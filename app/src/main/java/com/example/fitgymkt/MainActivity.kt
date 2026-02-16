@@ -84,7 +84,10 @@ fun NavegacionPrincipal(
             )
         }
         composable("registro") {
-            PantallaRegistro(alVolverAlLogin = { controladorNavegacion.popBackStack() })
+            PantallaRegistro(
+                alVolverAlLogin = { controladorNavegacion.popBackStack() },
+                alRegistroCompletado = { controladorNavegacion.popBackStack() }
+            )
         }
         composable("inicio") {
             PantallaInicio(
