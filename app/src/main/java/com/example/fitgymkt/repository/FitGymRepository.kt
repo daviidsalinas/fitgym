@@ -160,12 +160,16 @@ class FitGymRepository(context: Context) {
             return LoginResult.Error("Formato de email no válido")
         }
 
-        val db = dbHelper.readableDatabase
-        val storedPassword = db.rawQuery(
-            "SELECT contraseña FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
-            arrayOf(normalizedEmail)
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
+        val storedPassword = try {
+            val db = dbHelper.readableDatabase
+            db.rawQuery(
+                "SELECT contraseña FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
+                arrayOf(normalizedEmail)
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (e: Exception) {
+            return LoginResult.Error("No se pudo acceder a la base de datos")
         }
 
         return when {
@@ -176,7 +180,6 @@ class FitGymRepository(context: Context) {
     }
 
     fun register(nombreCompleto: String, email: String, telefono: String, password: String): RegisterResult {
-        val db = dbHelper.writableDatabase
 
         val normalizedEmail = email.trim()
         val fullName = nombreCompleto.trim().replace(Regex("\\s+"), " ")
@@ -193,10 +196,20 @@ class FitGymRepository(context: Context) {
             return RegisterResult.Error("La contraseña debe tener al menos 6 caracteres")
         }
 
-        val emailExists = db.rawQuery(
-            "SELECT 1 FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
-            arrayOf(normalizedEmail)
-        ).use { it.moveToFirst() }
+        val db = try {
+            dbHelper.writableDatabase
+        } catch (e: Exception) {
+            return RegisterResult.Error("No se pudo acceder a la base de datos")
+        }
+
+        val emailExists = try {
+            db.rawQuery(
+                "SELECT 1 FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
+                arrayOf(normalizedEmail)
+            ).use { it.moveToFirst() }
+        } catch (e: Exception) {
+            return RegisterResult.Error("No se pudo acceder a la base de datos")
+        }
 
         if (emailExists) {
             return RegisterResult.Error("Ya existe una cuenta con ese email")

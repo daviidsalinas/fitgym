@@ -14,26 +14,60 @@ class FitGymDbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        executeSqlScript(db, DDL_ASSET_PATH)
-        executeSqlScript(db, DML_ASSET_PATH)
+        createAndSeedDatabase(db)
+    }
+
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+
+        if (!hasRequiredSchema(db)) {
+            recreateDatabase(db)
+        }
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS configuracion_usuario")
-        db.execSQL("DROP TABLE IF EXISTS suscripcion")
-        db.execSQL("DROP TABLE IF EXISTS favorito")
-        db.execSQL("DROP TABLE IF EXISTS objetivo_semanal")
-        db.execSQL("DROP TABLE IF EXISTS actividad_usuario")
-        db.execSQL("DROP TABLE IF EXISTS reserva")
-        db.execSQL("DROP TABLE IF EXISTS horario_clase")
-        db.execSQL("DROP TABLE IF EXISTS sala")
-        db.execSQL("DROP TABLE IF EXISTS clase")
-        db.execSQL("DROP TABLE IF EXISTS direccion_usuario")
-        db.execSQL("DROP TABLE IF EXISTS telefono_usuario")
-        db.execSQL("DROP TABLE IF EXISTS monitor")
-        db.execSQL("DROP TABLE IF EXISTS cliente")
-        db.execSQL("DROP TABLE IF EXISTS usuario")
-        onCreate(db)
+        recreateDatabase(db)
+    }
+
+    private fun hasRequiredSchema(db: SQLiteDatabase): Boolean {
+        val hasUsuarioTable = db.rawQuery(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'usuario' LIMIT 1",
+            null
+        ).use { cursor ->
+            cursor.moveToFirst()
+        }
+
+        if (!hasUsuarioTable) return false
+
+        val usuarioColumns = db.rawQuery("PRAGMA table_info(usuario)", null).use { cursor ->
+            buildSet {
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(nameIndex))
+                }
+            }
+        }
+
+        return REQUIRED_USUARIO_COLUMNS.all { it in usuarioColumns }
+    }
+
+    private fun recreateDatabase(db: SQLiteDatabase) {
+        db.beginTransaction()
+        try {
+            TABLES_IN_DROP_ORDER.forEach { table ->
+                db.execSQL("DROP TABLE IF EXISTS $table")
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+
+        createAndSeedDatabase(db)
+    }
+
+    private fun createAndSeedDatabase(db: SQLiteDatabase) {
+        executeSqlScript(db, DDL_ASSET_PATH)
+        executeSqlScript(db, DML_ASSET_PATH)
     }
 
     private fun executeSqlScript(db: SQLiteDatabase, assetPath: String) {
@@ -63,5 +97,30 @@ class FitGymDbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null
         private const val DB_VERSION = 2
         private const val DDL_ASSET_PATH = "sql/fitgym_ddl.sql"
         private const val DML_ASSET_PATH = "sql/fitgym_dml.sql"
+
+        private val REQUIRED_USUARIO_COLUMNS = setOf(
+            "id_usuario",
+            "nombre",
+            "apellidos",
+            "email",
+            "contraseña"
+        )
+
+        private val TABLES_IN_DROP_ORDER = listOf(
+            "configuracion_usuario",
+            "suscripcion",
+            "favorito",
+            "objetivo_semanal",
+            "actividad_usuario",
+            "reserva",
+            "horario_clase",
+            "sala",
+            "clase",
+            "direccion_usuario",
+            "telefono_usuario",
+            "monitor",
+            "cliente",
+            "usuario"
+        )
     }
 }
