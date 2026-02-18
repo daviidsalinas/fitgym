@@ -3,10 +3,18 @@ package com.example.fitgymkt.data
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 
-class FitGymDbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
+class FitGymDbHelper(private val context: Context) :
+    SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
 
-    private val appContext = context.applicationContext
+    init {
+        // Al crear el helper, aseguramos que la BD exista
+        prepareDatabase()
+    }
 
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -14,99 +22,69 @@ class FitGymDbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        createAndSeedDatabase(db)
-    }
-
-    override fun onOpen(db: SQLiteDatabase) {
-        super.onOpen(db)
-
-        if (!hasRequiredSchema(db)) {
-            recreateDatabase(db)
-        }
+        // No usamos onCreate para crear BD, ya está pre-creada
+        Log.d(TAG, "onCreate llamado, la BD ya debería estar copiada")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        Log.d(TAG, "onUpgrade de $oldVersion a $newVersion")
+        // Para tu proyecto, simplemente borra y copia de nuevo si cambias DB_VERSION
         recreateDatabase(db)
     }
 
-    private fun hasRequiredSchema(db: SQLiteDatabase): Boolean {
-        val hasUsuarioTable = db.rawQuery(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'usuario' LIMIT 1",
-            null
-        ).use { cursor ->
-            cursor.moveToFirst()
+    // --------------------
+    // PREPARACIÓN DE LA BD
+    // --------------------
+    private fun prepareDatabase() {
+        val dbFile = context.getDatabasePath(DB_NAME)
+        if (!dbFile.exists()) {
+            Log.d(TAG, "BD no existe, copiando desde assets...")
+            copyDatabaseFromAssets(dbFile)
+        } else {
+            Log.d(TAG, "BD ya existe en: ${dbFile.path}")
         }
-
-        if (!hasUsuarioTable) return false
-
-        val usuarioColumns = db.rawQuery("PRAGMA table_info(usuario)", null).use { cursor ->
-            buildSet {
-                val nameIndex = cursor.getColumnIndex("name")
-                while (cursor.moveToNext()) {
-                    add(cursor.getString(nameIndex))
-                }
-            }
-        }
-
-        return REQUIRED_USUARIO_COLUMNS.all { it in usuarioColumns }
     }
 
-    private fun recreateDatabase(db: SQLiteDatabase) {
-        db.beginTransaction()
+    private fun copyDatabaseFromAssets(dbFile: File) {
+        dbFile.parentFile?.mkdirs()
         try {
-            TABLES_IN_DROP_ORDER.forEach { table ->
+            context.assets.open(DB_NAME).use { input ->
+                FileOutputStream(dbFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            Log.d(TAG, "Base de datos copiada correctamente a ${dbFile.path}")
+        } catch (e: IOException) {
+            Log.e(TAG, "Error copiando BD desde assets: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    // --------------------
+    // RECREAR BD (opcional)
+    // --------------------
+    private fun recreateDatabase(db: SQLiteDatabase) {
+        try {
+            db.beginTransaction()
+            TABLES_TO_DROP.forEach { table ->
                 db.execSQL("DROP TABLE IF EXISTS $table")
             }
             db.setTransactionSuccessful()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error recreando la BD: ${e.message}")
         } finally {
             db.endTransaction()
         }
-
-        createAndSeedDatabase(db)
-    }
-
-    private fun createAndSeedDatabase(db: SQLiteDatabase) {
-        executeSqlScript(db, DDL_ASSET_PATH)
-        executeSqlScript(db, DML_ASSET_PATH)
-    }
-
-    private fun executeSqlScript(db: SQLiteDatabase, assetPath: String) {
-        val script = appContext.assets.open(assetPath).bufferedReader().use { it.readText() }
-        val statements = script
-            .lineSequence()
-            .map { it.substringBefore("--").trim() }
-            .filter { it.isNotBlank() }
-            .joinToString("\n")
-            .split(";")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-
-        db.beginTransaction()
-        try {
-            statements.forEach { statement ->
-                db.execSQL(statement)
-            }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
+        // Luego podrías volver a copiar la BD pre-creada
+        prepareDatabase()
     }
 
     companion object {
-        private const val DB_NAME = "fitgym_app.db"
+        private const val TAG = "FitGymDbHelper"
+        private const val DB_NAME = "fitgym.db"
         private const val DB_VERSION = 2
-        private const val DDL_ASSET_PATH = "sql/fitgym_ddl.sql"
-        private const val DML_ASSET_PATH = "sql/fitgym_dml.sql"
 
-        private val REQUIRED_USUARIO_COLUMNS = setOf(
-            "id_usuario",
-            "nombre",
-            "apellidos",
-            "email",
-            "contraseña"
-        )
-
-        private val TABLES_IN_DROP_ORDER = listOf(
+        private val TABLES_TO_DROP = listOf(
             "configuracion_usuario",
             "suscripcion",
             "favorito",
