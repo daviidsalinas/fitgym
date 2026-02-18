@@ -80,33 +80,19 @@ fun NavegacionPrincipal(
     modoOscuroActual: Boolean,
     alCambiarModoOscuro: (Boolean) -> Unit,
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit
+    alAbrirNotificaciones: () -> Unit // Nuevo parámetro
 ) {
     val controladorNavegacion = rememberNavController()
 
     LaunchedEffect(usuarioSesion) {
-        // Solo redirige al login si ya pasó el splash (no está en "splash" ni en "login")
-        val rutaActual = controladorNavegacion.currentDestination?.route
-        if (usuarioSesion == null && rutaActual != "login" && rutaActual != "splash") {
+        if (usuarioSesion == null && controladorNavegacion.currentDestination?.route != "login") {
             controladorNavegacion.navigate("login") {
                 popUpTo(controladorNavegacion.graph.id) { inclusive = true }
             }
         }
     }
 
-    NavHost(navController = controladorNavegacion, startDestination = "splash") {
-        composable("splash") {
-            PantallaSplash(
-                alTerminar = {
-                    val destino = if (usuarioSesion == null) "login" else "inicio"
-                    controladorNavegacion.navigate(destino) {
-                        popUpTo("splash") { inclusive = true }
-                    }
-                },
-                delayMs = 2500L
-            )
-        }
-
+    NavHost(navController = controladorNavegacion, startDestination = if (usuarioSesion == null) "login" else "inicio") {
         composable("login") {
             PantallaLogin(
                 alIrARegistro = { controladorNavegacion.navigate("registro") },
