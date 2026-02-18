@@ -37,7 +37,7 @@ fun PantallaClases(
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
 
-    val dias = listOf("Todos", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
+    val dias = listOf("Todos", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
     var diaSeleccionado by remember { mutableStateOf("Todos") }
     var claseExpandida by remember { mutableStateOf<Int?>(null) }
 
