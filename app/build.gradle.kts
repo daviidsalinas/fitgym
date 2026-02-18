@@ -30,6 +30,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -59,10 +60,11 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("org.xerial:sqlite-jdbc:3.41.2.1") // versión actual
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("androidx.compose.material3:material3:1.2.0")
-    implementation("androidx.compose.material:material-icons-extended:1.6.1") // ESTA QUITA LOS ERRORES DE ICONOS
+    implementation("androidx.compose.material:material-icons-extended:1.6.1")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")// Necesario para poder usar java.time (DateTimeFormatter, LocalDate, etc.) en dispositivos con minSdk 24
+
 
 
 }

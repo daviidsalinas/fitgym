@@ -129,11 +129,12 @@ fun NavegacionPrincipal(
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
                 alIrAPerfil = { controladorNavegacion.navigate("perfil") },
-                alIrADetalle = { controladorNavegacion.navigate("detalle_reserva") }
+                alIrADetalle = { scheduleId -> controladorNavegacion.navigate("detalle_reserva/$scheduleId") }
             )
         }
         composable("analisis") {
             PantallaAnalisis(
+                userId = usuarioSesion?.userId ?: 1,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
@@ -152,8 +153,10 @@ fun NavegacionPrincipal(
                 onModoOscuroChanged = alCambiarModoOscuro
             )
         }
-        composable("detalle_reserva") {
+        composable("detalle_reserva/{scheduleId}") { backStackEntry ->
+            val scheduleId = backStackEntry.arguments?.getString("scheduleId")?.toIntOrNull() ?: return@composable
             PantallaDetalleReserva(
+                scheduleId = scheduleId,
                 alVolverAClases = { controladorNavegacion.popBackStack() },
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },

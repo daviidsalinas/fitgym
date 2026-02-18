@@ -12,22 +12,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitgymkt.model.ui.ProfileData
+import com.example.fitgymkt.repository.FitGymRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaPerfil(
+    userId: Int,
     alIrAInicio: () -> Unit,
     alIrAClases: () -> Unit,
     alIrAAnalisis: () -> Unit,
     modoOscuroActivado: Boolean,
     onModoOscuroChanged: (Boolean) -> Unit,
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit // <--- 1. Nuevo parámetro añadido
+    alAbrirNotificaciones: () -> Unit
 ) {
-    var notificacionesInternas by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    val repository = remember(context) { FitGymRepository(context) }
+
+    val perfil = produceState<ProfileData?>(initialValue = null, key1 = userId) {
+        value = withContext(Dispatchers.IO) { repository.getProfileData(userId) }
+    }.value
+
+    var notificacionesInternas by remember(perfil?.notificationsEnabled) {
+        mutableStateOf(perfil?.notificationsEnabled ?: true)
+    }
 
     Scaffold(
         topBar = {
@@ -39,7 +54,6 @@ fun PantallaPerfil(
                     }
                 },
                 actions = {
-                    // 2. Conectamos la campana con el diálogo global
                     IconButton(onClick = alAbrirNotificaciones) {
                         BadgedBox(badge = { Badge { Text("2") } }) {
                             Icon(Icons.Default.Notifications, null)
@@ -58,6 +72,13 @@ fun PantallaPerfil(
             }
         }
     ) { padding ->
+        if (perfil == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -71,7 +92,7 @@ fun PantallaPerfil(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 1. Cabecera de Perfil
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -96,19 +117,18 @@ fun PantallaPerfil(
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Carlos Martínez", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                    Text(perfil.fullName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // 2. Información Personal
             SeccionPerfil("Información Personal") {
-                ItemPerfil(Icons.Default.Email, "Email", "email@gmail.com")
+                ItemPerfil(Icons.Default.Email, "Email", perfil.email)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                ItemPerfil(Icons.Default.Phone, "Teléfono", "+34 612 345 678")
+                ItemPerfil(Icons.Default.Phone, "Teléfono", perfil.phone.ifBlank { "No registrado" })
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                ItemPerfil(Icons.Default.CalendarToday, "Edad", "28 años")
+                ItemPerfil(Icons.Default.CalendarToday, "Edad", "${perfil.age} años")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -117,10 +137,10 @@ fun PantallaPerfil(
             SeccionPerfil("Medidas Corporales") {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Box(modifier = Modifier.weight(1f)) {
-                        ItemPerfil(Icons.Default.Scale, "Peso", "73 kg", mostrarFlecha = false)
+                        ItemPerfil(Icons.Default.Scale, "Peso", "${perfil.weightKg} kg", mostrarFlecha = false)
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        ItemPerfil(Icons.Default.Straighten, "Altura", "178 cm", mostrarFlecha = false)
+                        ItemPerfil(Icons.Default.Straighten, "Altura", "${perfil.heightCm} cm", mostrarFlecha = false)
                     }
                 }
             }
@@ -138,7 +158,7 @@ fun PantallaPerfil(
                 ItemConfiguracion(Icons.Default.Notifications, "Notificaciones", "Alertas en tiempo real") {
                     Switch(checked = notificacionesInternas, onCheckedChange = { notificacionesInternas = it })
                 }
-                ItemPerfil(Icons.Default.Language, "Idioma", "Español")
+                ItemPerfil(Icons.Default.Language, "Idioma", perfil.language)
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PantallaClases(
     alIrAInicio: () -> Unit,
-    alIrADetalle: () -> Unit,
+    alIrADetalle: (Int) -> Unit,
     alIrAAnalisis: () -> Unit,
     alIrAPerfil: () -> Unit,
     alAbrirMenu: () -> Unit,
@@ -140,7 +140,7 @@ fun PantallaClases(
                         onExpandClick = {
                             claseExpandida = if (claseExpandida == clase.classId) null else clase.classId
                         },
-                        onHorarioClick = alIrADetalle,
+                        onHorarioClick = { scheduleId -> alIrADetalle(scheduleId) },
                         horarios = clase.schedules
                     )
                 }
@@ -166,7 +166,7 @@ fun TarjetaClaseDesplegable(
     colorBase: Color,
     estaExpandida: Boolean,
     onExpandClick: () -> Unit,
-    onHorarioClick: () -> Unit,
+    onHorarioClick: (Int) -> Unit,
     horarios: List<com.example.fitgymkt.model.ui.ClassScheduleItem>
 ) {
     Card(
@@ -203,7 +203,7 @@ fun TarjetaClaseDesplegable(
                             plazas = "${horario.occupiedSlots}/${horario.totalSlots}",
                             instructor = horario.instructorName,
                             esCritico = horario.totalSlots - horario.occupiedSlots <= 3,
-                            onClick = onHorarioClick
+                            onClick = { onHorarioClick(horario.scheduleId) }
                         )
                     }
                 }

@@ -7,6 +7,9 @@ import com.example.fitgymkt.data.FitGymDbHelper
 import com.example.fitgymkt.model.ui.ClassScheduleItem
 import com.example.fitgymkt.model.ui.ClassWithSchedules
 import com.example.fitgymkt.model.ui.HomeData
+import com.example.fitgymkt.model.ui.AnalysisData
+import com.example.fitgymkt.model.ui.ProfileData
+import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.model.ui.TodayClassItem
 import java.util.Locale
 
@@ -148,6 +151,172 @@ class FitGymRepository(context: Context) {
                     }
                 )
             }
+    }
+
+    fun getAnalysisData(userId: Int): AnalysisData {
+        val db = dbHelper.readableDatabase
+        val calendar = java.util.Calendar.getInstance()
+        val currentWeek = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+        val currentYear = calendar.get(java.util.Calendar.YEAR)
+
+        val streakDates = db.rawQuery(
+            """
+            SELECT DISTINCT fecha
+            FROM actividad_usuario
+            WHERE id_usuario = ?
+            ORDER BY fecha DESC
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(0))
+                }
+            }
+        }
+
+        val streakDays = calculateStreakDays(streakDates)
+
+        val weeklyGoalHours = db.rawQuery(
+            """
+            SELECT horas_objetivo
+            FROM objetivo_semanal
+            WHERE id_usuario = ? AND semana = ? AND anio = ?
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString(), currentWeek.toString(), currentYear.toString())
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 8.0
+        }
+
+        val trainedMinutesWeek = db.rawQuery(
+            """
+            SELECT COALESCE(SUM(duracion_minutos), 0)
+            FROM actividad_usuario
+            WHERE id_usuario = ?
+              AND CAST(strftime('%W', fecha) AS INTEGER) = ?
+              AND CAST(strftime('%Y', fecha) AS INTEGER) = ?
+            """.trimIndent(),
+            arrayOf(userId.toString(), currentWeek.toString(), currentYear.toString())
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+
+        val weekActivityMinutes = db.rawQuery(
+            """
+            SELECT CAST(strftime('%w', fecha) AS INTEGER) AS dia,
+                   COALESCE(SUM(duracion_minutos), 0) AS minutos
+            FROM actividad_usuario
+            WHERE id_usuario = ?
+              AND date(fecha) >= date('now', '-6 day')
+            GROUP BY dia
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            val byDay = mutableMapOf<Int, Int>()
+            while (cursor.moveToNext()) {
+                byDay[cursor.getInt(0)] = cursor.getInt(1)
+            }
+            // Lunes..Domingo
+            listOf(1, 2, 3, 4, 5, 6, 0).map { byDay[it] ?: 0 }
+        }
+
+        return AnalysisData(
+            streakDays = streakDays,
+            weeklyGoalHours = weeklyGoalHours,
+            weeklyTrainedHours = trainedMinutesWeek / 60.0,
+            weekActivityMinutes = weekActivityMinutes
+        )
+    }
+
+    fun getProfileData(userId: Int): ProfileData {
+        val db = dbHelper.readableDatabase
+
+        return db.rawQuery(
+            """
+            SELECT
+                COALESCE(u.nombre || ' ' || u.apellidos, 'Usuario') AS nombre_completo,
+                COALESCE(u.email, ''),
+                COALESCE((SELECT t.telefono FROM telefono_usuario t WHERE t.id_usuario = u.id_usuario ORDER BY t.id_telefono DESC LIMIT 1), ''),
+                COALESCE(c.edad, 0),
+                COALESCE(c.peso, 0),
+                COALESCE(c.altura, 0),
+                COALESCE(cfg.notificaciones, 1),
+                COALESCE(cfg.idioma, 'ES')
+            FROM usuario u
+            LEFT JOIN cliente c ON c.id_usuario = u.id_usuario
+            LEFT JOIN configuracion_usuario cfg ON cfg.id_usuario = u.id_usuario
+            WHERE u.id_usuario = ?
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            if (cursor.moveToFirst()) {
+                ProfileData(
+                    fullName = cursor.getString(0),
+                    email = cursor.getString(1),
+                    phone = cursor.getString(2),
+                    age = cursor.getInt(3),
+                    weightKg = cursor.getDouble(4),
+                    heightCm = cursor.getDouble(5),
+                    notificationsEnabled = cursor.getInt(6) == 1,
+                    language = cursor.getString(7)
+                )
+            } else {
+                ProfileData(
+                    fullName = "Usuario",
+                    email = "",
+                    phone = "",
+                    age = 0,
+                    weightKg = 0.0,
+                    heightCm = 0.0,
+                    notificationsEnabled = true,
+                    language = "ES"
+                )
+            }
+        }
+    }
+
+    fun getReservationDetail(scheduleId: Int): ReservationDetailData? {
+        val db = dbHelper.readableDatabase
+        return db.rawQuery(
+            """
+            SELECT
+                c.nombre,
+                COALESCE(c.descripcion, ''),
+                h.fecha,
+                h.hora_inicio,
+                COALESCE(u.nombre || ' ' || u.apellidos, 'Monitor'),
+                s.nombre_sala,
+                COALESCE(SUM(CASE WHEN r.estado = 'reservada' THEN 1 ELSE 0 END), 0) AS ocupadas,
+                h.plazas_totales
+            FROM horario_clase h
+            INNER JOIN clase c ON c.id_clase = h.id_clase
+            INNER JOIN sala s ON s.id_sala = h.id_sala
+            INNER JOIN monitor m ON m.id_usuario = h.id_monitor
+            INNER JOIN usuario u ON u.id_usuario = m.id_usuario
+            LEFT JOIN reserva r ON r.id_horario = h.id_horario
+            WHERE h.id_horario = ?
+            GROUP BY h.id_horario
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(scheduleId.toString())
+        ).use { cursor ->
+            if (cursor.moveToFirst()) {
+                ReservationDetailData(
+                    className = cursor.getString(0),
+                    classDescription = cursor.getString(1),
+                    date = cursor.getString(2),
+                    startTime = cursor.getString(3),
+                    instructorName = cursor.getString(4),
+                    roomName = cursor.getString(5),
+                    occupiedSlots = cursor.getInt(6),
+                    totalSlots = cursor.getInt(7)
+                )
+            } else {
+                null
+            }
+        }
     }
 
     fun login(email: String, password: String): LoginResult {
@@ -316,6 +485,31 @@ class FitGymRepository(context: Context) {
         val userName: String,
         val storedPassword: String
     )
+
+
+    private fun calculateStreakDays(sortedDatesDesc: List<String>): Int {
+        if (sortedDatesDesc.isEmpty()) return 0
+
+        val formatter = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE
+        val today = java.time.LocalDate.now()
+        val firstDate = runCatching { java.time.LocalDate.parse(sortedDatesDesc.first(), formatter) }.getOrNull()
+            ?: return 0
+
+        if (firstDate != today && firstDate != today.minusDays(1)) return 0
+
+        var streak = 1
+        var previous = firstDate
+        sortedDatesDesc.drop(1).forEach { rawDate ->
+            val current = runCatching { java.time.LocalDate.parse(rawDate, formatter) }.getOrNull() ?: return@forEach
+            if (current == previous.minusDays(1)) {
+                streak += 1
+                previous = current
+            } else if (current != previous) {
+                return streak
+            }
+        }
+        return streak
+    }
 }
 
 sealed class LoginResult {

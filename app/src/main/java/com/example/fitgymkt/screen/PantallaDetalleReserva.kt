@@ -8,23 +8,37 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitgymkt.model.ui.ReservationDetailData
+import com.example.fitgymkt.repository.FitGymRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaDetalleReserva(
+    scheduleId: Int,
     alVolverAClases: () -> Unit,
     alIrAInicio: () -> Unit,
     alIrAAnalisis: () -> Unit,
     alIrAPerfil: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { FitGymRepository(context) }
+
+    val detalle = produceState<ReservationDetailData?>(initialValue = null, key1 = scheduleId) {
+        value = withContext(Dispatchers.IO) { repository.getReservationDetail(scheduleId) }
+    }.value
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -47,7 +61,13 @@ fun PantallaDetalleReserva(
             }
         }
     ) { padding ->
-        // Habilitamos el scroll para ver todo el contenido
+        if (detalle == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -59,15 +79,13 @@ fun PantallaDetalleReserva(
                 Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
                     IconButton(
                         onClick = { alVolverAClases() },
-                        modifier = Modifier
-                            .align(Alignment.Start)
-                            .background(Color.Black.copy(0.5f), CircleShape)
+                        modifier = Modifier.align(Alignment.Start).background(Color.Black.copy(0.5f), CircleShape)
                     ) {
                         Icon(Icons.Default.ArrowBack, null, tint = Color.White)
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    Text("Yoga", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text("Equilibrio y flexibilidad", color = Color.White.copy(0.8f), fontSize = 16.sp)
+                    Text(detalle.className, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text(detalle.classDescription, color = Color.White.copy(0.8f), fontSize = 16.sp)
                 }
             }
 
@@ -81,10 +99,10 @@ fun PantallaDetalleReserva(
                 Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     Text("Detalles de la Clase", fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
-                    ItemDetalle(Icons.Default.CalendarMonth, "Día y Hora", "Lunes\n08:00")
-                    ItemDetalle(Icons.Default.Person, "Instructor", "María García")
-                    ItemDetalle(Icons.Default.LocationOn, "Ubicación", "Sala Principal")
-                    ItemDetalle(Icons.Default.Groups, "Disponibilidad", "5 de 15 plazas")
+                    ItemDetalle(Icons.Default.CalendarMonth, "Día y Hora", "${detalle.date}\n${detalle.startTime}")
+                    ItemDetalle(Icons.Default.Person, "Instructor", detalle.instructorName)
+                    ItemDetalle(Icons.Default.LocationOn, "Ubicación", detalle.roomName)
+                    ItemDetalle(Icons.Default.Groups, "Disponibilidad", "${detalle.occupiedSlots} de ${detalle.totalSlots} plazas")
                 }
             }
 
@@ -122,7 +140,7 @@ fun PantallaDetalleReserva(
 
             // Botón de Acción Final
             Button(
-                onClick = { /* Lógica de reserva */ },
+                onClick = { },
                 modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(16.dp)
