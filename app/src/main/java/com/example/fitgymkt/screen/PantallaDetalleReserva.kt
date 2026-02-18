@@ -1,30 +1,82 @@
 package com.example.fitgymkt.screen
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitgymkt.model.ui.ReservationDetailData
+import com.example.fitgymkt.repository.FitGymRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaDetalleReserva(
+    userId: Int,
     alVolverAClases: () -> Unit,
     alIrAInicio: () -> Unit,
     alIrAAnalisis: () -> Unit,
     alIrAPerfil: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { FitGymRepository(context) }
+
+    val reservationDetail by produceState<ReservationDetailData?>(initialValue = null, userId) {
+        value = withContext(Dispatchers.IO) { repository.getReservationDetail(userId) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -40,34 +92,34 @@ fun PantallaDetalleReserva(
         },
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(selected = false, onClick = { alIrAInicio() }, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
-                NavigationBarItem(selected = true, onClick = { alVolverAClases() }, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
-                NavigationBarItem(selected = false, onClick = { alIrAAnalisis() }, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
-                NavigationBarItem(selected = false, onClick = { alIrAPerfil() }, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
+                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
+                NavigationBarItem(selected = true, onClick = alVolverAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
+                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
+                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
             }
         }
     ) { padding ->
-        // Habilitamos el scroll para ver todo el contenido
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Cabecera con Imagen y Botón Volver
+        if (reservationDetail == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        val detail = reservationDetail!!
+
+        Column(modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
             Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.DarkGray)) {
                 Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
                     IconButton(
-                        onClick = { alVolverAClases() },
-                        modifier = Modifier
-                            .align(Alignment.Start)
-                            .background(Color.Black.copy(0.5f), CircleShape)
+                        onClick = alVolverAClases,
+                        modifier = Modifier.align(Alignment.Start).background(Color.Black.copy(0.5f), CircleShape)
                     ) {
                         Icon(Icons.Default.ArrowBack, null, tint = Color.White)
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    Text("Yoga", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text("Equilibrio y flexibilidad", color = Color.White.copy(0.8f), fontSize = 16.sp)
+                    Text(detail.className, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text(detail.classDescription, color = Color.White.copy(0.8f), fontSize = 16.sp)
                 }
             }
 
@@ -81,10 +133,10 @@ fun PantallaDetalleReserva(
                 Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     Text("Detalles de la Clase", fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
-                    ItemDetalle(Icons.Default.CalendarMonth, "Día y Hora", "Lunes\n08:00")
-                    ItemDetalle(Icons.Default.Person, "Instructor", "María García")
-                    ItemDetalle(Icons.Default.LocationOn, "Ubicación", "Sala Principal")
-                    ItemDetalle(Icons.Default.Groups, "Disponibilidad", "5 de 15 plazas")
+                    ItemDetalle(Icons.Default.CalendarMonth, "Día y Hora", "${detail.date}\n${detail.startTime}")
+                    ItemDetalle(Icons.Default.Person, "Instructor", detail.instructorName)
+                    ItemDetalle(Icons.Default.LocationOn, "Ubicación", detail.roomName)
+                    ItemDetalle(Icons.Default.Groups, "Disponibilidad", "${detail.occupiedSlots} de ${detail.totalSlots} plazas")
                 }
             }
 

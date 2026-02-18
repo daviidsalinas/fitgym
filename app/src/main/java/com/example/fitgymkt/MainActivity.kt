@@ -148,6 +148,7 @@ fun NavegacionPrincipal(
         }
         composable("analisis") {
             PantallaAnalisis(
+                userId = usuarioSesion?.userId ?: 1,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
@@ -157,6 +158,7 @@ fun NavegacionPrincipal(
         }
         composable("perfil") {
             PantallaPerfil(
+                userId = usuarioSesion?.userId ?: 1,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
@@ -168,6 +170,7 @@ fun NavegacionPrincipal(
         }
         composable("detalle_reserva") {
             PantallaDetalleReserva(
+                userId = usuarioSesion?.userId ?: 1,
                 alVolverAClases = { controladorNavegacion.popBackStack() },
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },

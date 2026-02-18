@@ -4,10 +4,16 @@ import android.content.ContentValues
 import android.content.Context
 import android.util.Patterns
 import com.example.fitgymkt.data.FitGymDbHelper
+import com.example.fitgymkt.model.ui.AnalysisData
 import com.example.fitgymkt.model.ui.ClassScheduleItem
 import com.example.fitgymkt.model.ui.ClassWithSchedules
 import com.example.fitgymkt.model.ui.HomeData
+import com.example.fitgymkt.model.ui.ProfileData
+import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.model.ui.TodayClassItem
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 class FitGymRepository(context: Context) {
@@ -81,6 +87,162 @@ class FitGymRepository(context: Context) {
             trainingHours = String.format(Locale.getDefault(), "%.1f h", hours),
             todayClasses = todayClasses
         )
+    }
+
+    fun getAnalysisData(userId: Int): AnalysisData {
+        val db = dbHelper.readableDatabase
+        val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+        val activityRows = db.rawQuery(
+            """
+            SELECT fecha, COALESCE(SUM(duracion_minutos), 0)
+            FROM actividad_usuario
+            WHERE id_usuario = ?
+            GROUP BY fecha
+            ORDER BY fecha ASC
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    val date = dateFormatter.parse(cursor.getString(0)) ?: continue
+                    val minutes = cursor.getInt(1)
+                    add(date to minutes)
+                }
+            }
+        }
+
+        val streakDays = calculateCurrentStreak(activityRows.map { it.first }, dateFormatter)
+
+        val latestDate = activityRows.lastOrNull()?.first ?: Date()
+        val weeklyHours = (0..6).map { offset ->
+            val calendar = Calendar.getInstance().apply {
+                time = latestDate
+                add(Calendar.DAY_OF_YEAR, offset - 6)
+            }
+            val day = dateFormatter.format(calendar.time)
+            val minutes = activityRows.firstOrNull { dateFormatter.format(it.first) == day }?.second ?: 0
+            minutes / 60.0
+        }
+
+        val weeklyCompletedHours = weeklyHours.sum()
+
+        val calendar = Calendar.getInstance().apply { time = latestDate }
+        val currentWeek = calendar.get(Calendar.WEEK_OF_YEAR)
+        val currentYear = calendar.get(Calendar.YEAR)
+
+        val weeklyGoalHours = db.rawQuery(
+            """
+            SELECT horas_objetivo
+            FROM objetivo_semanal
+            WHERE id_usuario = ? AND semana = ? AND anio = ?
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString(), currentWeek.toString(), currentYear.toString())
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 8.0
+        }
+
+        return AnalysisData(
+            streakDays = streakDays,
+            weeklyGoalHours = weeklyGoalHours,
+            weeklyCompletedHours = weeklyCompletedHours,
+            weeklyActivityHours = weeklyHours
+        )
+    }
+
+    fun getProfileData(userId: Int): ProfileData {
+        val db = dbHelper.readableDatabase
+
+        return db.rawQuery(
+            """
+            SELECT
+                u.nombre || ' ' || u.apellidos AS full_name,
+                u.email,
+                COALESCE(t.telefono, ''),
+                COALESCE(c.edad, 0),
+                COALESCE(c.peso, 0),
+                COALESCE(c.altura, 0),
+                COALESCE(cfg.notificaciones, 1),
+                COALESCE(cfg.idioma, 'ES')
+            FROM usuario u
+            LEFT JOIN cliente c ON c.id_usuario = u.id_usuario
+            LEFT JOIN telefono_usuario t ON t.id_usuario = u.id_usuario
+            LEFT JOIN configuracion_usuario cfg ON cfg.id_usuario = u.id_usuario
+            WHERE u.id_usuario = ?
+            ORDER BY t.id_telefono ASC
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) {
+                return@use ProfileData(
+                    fullName = "Usuario",
+                    email = "",
+                    phone = "",
+                    age = 0,
+                    weightKg = 0.0,
+                    heightCm = 0.0,
+                    notificationsEnabled = true,
+                    language = "ES"
+                )
+            }
+
+            ProfileData(
+                fullName = cursor.getString(0),
+                email = cursor.getString(1),
+                phone = cursor.getString(2),
+                age = cursor.getInt(3),
+                weightKg = cursor.getDouble(4),
+                heightCm = cursor.getDouble(5),
+                notificationsEnabled = cursor.getInt(6) == 1,
+                language = cursor.getString(7)
+            )
+        }
+    }
+
+    fun getReservationDetail(userId: Int): ReservationDetailData? {
+        val db = dbHelper.readableDatabase
+
+        return db.rawQuery(
+            """
+            SELECT
+                c.nombre,
+                c.descripcion,
+                h.fecha,
+                h.hora_inicio,
+                u.nombre || ' ' || u.apellidos AS instructor,
+                s.nombre_sala,
+                h.plazas_totales,
+                COALESCE(SUM(CASE WHEN r2.estado = 'reservada' THEN 1 ELSE 0 END), 0) AS ocupadas
+            FROM reserva r
+            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
+            INNER JOIN clase c ON c.id_clase = h.id_clase
+            INNER JOIN sala s ON s.id_sala = h.id_sala
+            INNER JOIN monitor m ON m.id_usuario = h.id_monitor
+            INNER JOIN usuario u ON u.id_usuario = m.id_usuario
+            LEFT JOIN reserva r2 ON r2.id_horario = h.id_horario
+            WHERE r.id_usuario = ?
+              AND r.estado IN ('reservada', 'completada')
+            GROUP BY h.id_horario
+            ORDER BY h.fecha ASC, h.hora_inicio ASC
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+
+            ReservationDetailData(
+                className = cursor.getString(0),
+                classDescription = cursor.getString(1) ?: "Sin descripción",
+                date = cursor.getString(2),
+                startTime = cursor.getString(3),
+                instructorName = cursor.getString(4),
+                roomName = cursor.getString(5),
+                totalSlots = cursor.getInt(6),
+                occupiedSlots = cursor.getInt(7)
+            )
+        }
     }
 
     fun getClassesByWeekDay(dayFilter: String): List<ClassWithSchedules> {
@@ -310,6 +472,28 @@ class FitGymRepository(context: Context) {
         val occupiedSlots: Int,
         val instructorName: String
     )
+
+    private fun calculateCurrentStreak(dates: List<Date>, formatter: SimpleDateFormat): Int {
+        if (dates.isEmpty()) return 0
+
+        val sorted = dates.distinct().sortedDescending()
+        var streak = 1
+
+        for (index in 1 until sorted.size) {
+            val expectedCalendar = Calendar.getInstance().apply {
+                time = sorted[index - 1]
+                add(Calendar.DAY_OF_YEAR, -1)
+            }
+
+            if (formatter.format(sorted[index]) == formatter.format(expectedCalendar.time)) {
+                streak++
+            } else {
+                break
+            }
+        }
+
+        return streak
+    }
 
     private data class LoginRow(
         val userId: Int,

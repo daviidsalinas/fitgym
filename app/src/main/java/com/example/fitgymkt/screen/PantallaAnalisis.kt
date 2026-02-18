@@ -1,30 +1,84 @@
 package com.example.fitgymkt.screen
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fitgymkt.model.ui.AnalysisData
+import com.example.fitgymkt.repository.FitGymRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaAnalisis(
+    userId: Int,
     alIrAInicio: () -> Unit,
     alIrAClases: () -> Unit,
     alIrAPerfil: () -> Unit,
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit // <--- 1. Nuevo parámetro añadido
+    alAbrirNotificaciones: () -> Unit
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { FitGymRepository(context) }
+
+    val analysisData by produceState<AnalysisData?>(initialValue = null, userId) {
+        value = withContext(Dispatchers.IO) { repository.getAnalysisData(userId) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -35,7 +89,6 @@ fun PantallaAnalisis(
                     }
                 },
                 actions = {
-                    // 2. Conectamos la campana con la función global de notificaciones
                     IconButton(onClick = alAbrirNotificaciones) {
                         BadgedBox(badge = { Badge { Text("2") } }) {
                             Icon(Icons.Default.Notifications, null)
@@ -47,33 +100,26 @@ fun PantallaAnalisis(
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { alIrAInicio() },
-                    icon = { Icon(Icons.Default.Home, null) },
-                    label = { Text("Inicio") }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { alIrAClases() },
-                    icon = { Icon(Icons.Default.DateRange, null) },
-                    label = { Text("Clases") }
-                )
-                NavigationBarItem(
-                    selected = true,
-                    onClick = { },
-                    icon = { Icon(Icons.Default.BarChart, null) },
-                    label = { Text("Análisis") }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { alIrAPerfil() },
-                    icon = { Icon(Icons.Default.Person, null) },
-                    label = { Text("Perfil") }
-                )
+                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
+                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
+                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
+                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
             }
         }
     ) { padding ->
+        if (analysisData == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        val data = analysisData!!
+        val progress = if (data.weeklyGoalHours <= 0.0) 0f else (data.weeklyCompletedHours / data.weeklyGoalHours).toFloat().coerceIn(0f, 1f)
+        val remainingHours = (data.weeklyGoalHours - data.weeklyCompletedHours).coerceAtLeast(0.0)
+        val totalWeeklyHours = data.weeklyActivityHours.sum()
+        val avgMinutes = if (data.weeklyActivityHours.isEmpty()) 0 else ((totalWeeklyHours / data.weeklyActivityHours.size) * 60).toInt()
+
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -108,7 +154,7 @@ fun PantallaAnalisis(
                     }
 
                     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(vertical = 12.dp)) {
-                        Text("7", color = Color(0xFFFF9800), fontSize = 60.sp, fontWeight = FontWeight.Bold)
+                        Text(data.streakDays.toString(), color = Color(0xFFFF9800), fontSize = 60.sp, fontWeight = FontWeight.Bold)
                         Text(" días consecutivos", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
                     }
                     Text("¡Increíble! Tu constancia está dando frutos", color = Color.Gray, fontSize = 12.sp)
@@ -135,25 +181,27 @@ fun PantallaAnalisis(
                         }
                     }
 
-                    Column(
-                        modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(text = "6.2 / 8h", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = String.format(Locale.getDefault(), "%.1f / %.1fh", data.weeklyCompletedHours, data.weeklyGoalHours),
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Text("en el gimnasio esta semana", color = Color.Gray, fontSize = 14.sp)
                     }
 
                     LinearProgressIndicator(
-                        progress = { 0.78f },
+                        progress = { progress },
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
                         color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outlineVariant,
+                        trackColor = MaterialTheme.colorScheme.outlineVariant
                     )
 
                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Text("78% completado", fontSize = 12.sp, color = Color.Gray)
+                        Text("${(progress * 100).toInt()}% completado", fontSize = 12.sp, color = Color.Gray)
                         Spacer(modifier = Modifier.weight(1f))
-                        Text("1.8h restantes", fontSize = 12.sp, color = Color.Gray)
+                        Text(String.format(Locale.getDefault(), "%.1fh restantes", remainingHours), fontSize = 12.sp, color = Color.Gray)
                     }
                 }
             }
@@ -189,17 +237,18 @@ fun PantallaAnalisis(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        val datos = listOf(0.7f, 0.4f, 0.9f, 0.6f, 0.8f, 0.3f, 0.1f)
+                        val maxValue = (data.weeklyActivityHours.maxOrNull() ?: 0.0).coerceAtLeast(0.1)
                         val dias = listOf("L", "M", "X", "J", "V", "S", "D")
 
-                        datos.forEachIndexed { index, altura ->
+                        data.weeklyActivityHours.forEachIndexed { index, dailyHours ->
+                            val altura = (dailyHours / maxValue).toFloat().coerceIn(0.1f, 1f)
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Box(
                                     modifier = Modifier
                                         .width(28.dp)
                                         .fillMaxHeight(altura)
                                         .background(
-                                            color = if (index == 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                            color = if (dailyHours == maxValue) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
                                             shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
                                         )
                                 )
@@ -215,13 +264,13 @@ fun PantallaAnalisis(
                         Box(modifier = Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(16.dp)) {
                             Column {
                                 Text("Total", fontSize = 12.sp, color = Color.Gray)
-                                Text("6.3 h", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(String.format(Locale.getDefault(), "%.1f h", totalWeeklyHours), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Box(modifier = Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(16.dp)) {
                             Column {
                                 Text("Promedio Diario", fontSize = 12.sp, color = Color.Gray)
-                                Text("54 min", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$avgMinutes min", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
