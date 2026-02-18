@@ -11,6 +11,7 @@ import com.example.fitgymkt.model.ui.HomeData
 import com.example.fitgymkt.model.ui.ProfileData
 import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.model.ui.TodayClassItem
+import java.time.LocalDate
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -80,12 +81,14 @@ class FitGymRepository(context: Context) {
         }
 
         val hours = totalMinutes.toDouble() / 60.0
+        val streakDays = calculateCurrentStreakDays(userId)
 
         return HomeData(
             userName = userName,
             calories = calories,
             trainingHours = String.format(Locale.getDefault(), "%.1f h", hours),
-            todayClasses = todayClasses
+            todayClasses = todayClasses,
+            streakDays = streakDays
         )
     }
 
@@ -242,6 +245,158 @@ class FitGymRepository(context: Context) {
                 totalSlots = cursor.getInt(6),
                 occupiedSlots = cursor.getInt(7)
             )
+        }
+    }
+
+    fun getReservationDetailForSchedule(scheduleId: Int): ReservationDetailData? {
+        val db = dbHelper.readableDatabase
+
+        return db.rawQuery(
+            """
+            SELECT
+                c.nombre,
+                c.descripcion,
+                h.fecha,
+                h.hora_inicio,
+                u.nombre || ' ' || u.apellidos AS instructor,
+                s.nombre_sala,
+                h.plazas_totales,
+                COALESCE(SUM(CASE WHEN r.estado = 'reservada' THEN 1 ELSE 0 END), 0) AS ocupadas
+            FROM horario_clase h
+            INNER JOIN clase c ON c.id_clase = h.id_clase
+            INNER JOIN sala s ON s.id_sala = h.id_sala
+            INNER JOIN monitor m ON m.id_usuario = h.id_monitor
+            INNER JOIN usuario u ON u.id_usuario = m.id_usuario
+            LEFT JOIN reserva r ON r.id_horario = h.id_horario
+            WHERE h.id_horario = ?
+            GROUP BY h.id_horario
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(scheduleId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+
+            ReservationDetailData(
+                className = cursor.getString(0),
+                classDescription = cursor.getString(1) ?: "Sin descripción",
+                date = cursor.getString(2),
+                startTime = cursor.getString(3),
+                instructorName = cursor.getString(4),
+                roomName = cursor.getString(5),
+                totalSlots = cursor.getInt(6),
+                occupiedSlots = cursor.getInt(7)
+            )
+        }
+    }
+
+    fun reserveClass(userId: Int, scheduleId: Int): ActionResult {
+        val db = dbHelper.writableDatabase
+
+        val alreadyReserved = db.rawQuery(
+            "SELECT 1 FROM reserva WHERE id_usuario = ? AND id_horario = ? AND estado != 'cancelada' LIMIT 1",
+            arrayOf(userId.toString(), scheduleId.toString())
+        ).use { it.moveToFirst() }
+
+        if (alreadyReserved) {
+            return ActionResult.Error("Ya tienes una reserva para esta clase")
+        }
+
+        val capacityRow = db.rawQuery(
+            """
+            SELECT h.plazas_totales, COALESCE(SUM(CASE WHEN r.estado = 'reservada' THEN 1 ELSE 0 END), 0)
+            FROM horario_clase h
+            LEFT JOIN reserva r ON r.id_horario = h.id_horario
+            WHERE h.id_horario = ?
+            GROUP BY h.id_horario
+            """.trimIndent(),
+            arrayOf(scheduleId.toString())
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) to cursor.getInt(1) else null
+        } ?: return ActionResult.Error("Horario no encontrado")
+
+        if (capacityRow.second >= capacityRow.first) {
+            return ActionResult.Error("No hay plazas disponibles")
+        }
+
+        val values = ContentValues().apply {
+            put("id_usuario", userId)
+            put("id_horario", scheduleId)
+            put("estado", "reservada")
+            put("fecha_reserva", LocalDate.now().toString())
+        }
+
+        return try {
+            db.insertOrThrow("reserva", null, values)
+            ActionResult.Success("¡Reserva confirmada!")
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudo completar la reserva")
+        }
+    }
+
+    fun registerWorkout(userId: Int, minutes: Int): ActionResult {
+        if (minutes <= 0) return ActionResult.Error("Introduce una duración válida")
+
+        val values = ContentValues().apply {
+            put("id_usuario", userId)
+            put("fecha", LocalDate.now().toString())
+            put("duracion_minutos", minutes)
+        }
+
+        return try {
+            dbHelper.writableDatabase.insertOrThrow("actividad_usuario", null, values)
+            ActionResult.Success("Entrenamiento registrado")
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudo registrar el entrenamiento")
+        }
+    }
+
+    fun updateProfileData(
+        userId: Int,
+        email: String,
+        phone: String,
+        age: Int,
+        weightKg: Double,
+        heightCm: Double
+    ): ActionResult {
+        val normalizedEmail = email.trim()
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            return ActionResult.Error("Email no válido")
+        }
+
+        val db = dbHelper.writableDatabase
+        db.beginTransaction()
+
+        return try {
+            val emailInUse = db.rawQuery(
+                "SELECT 1 FROM usuario WHERE lower(email)=lower(?) AND id_usuario != ? LIMIT 1",
+                arrayOf(normalizedEmail, userId.toString())
+            ).use { it.moveToFirst() }
+
+            if (emailInUse) {
+                ActionResult.Error("Ese email ya está en uso")
+            } else {
+                db.update("usuario", ContentValues().apply { put("email", normalizedEmail) }, "id_usuario = ?", arrayOf(userId.toString()))
+                db.update("cliente", ContentValues().apply {
+                    put("edad", age)
+                    put("peso", weightKg)
+                    put("altura", heightCm)
+                }, "id_usuario = ?", arrayOf(userId.toString()))
+
+                db.delete("telefono_usuario", "id_usuario = ?", arrayOf(userId.toString()))
+                if (phone.isNotBlank()) {
+                    db.insertOrThrow("telefono_usuario", null, ContentValues().apply {
+                        put("id_usuario", userId)
+                        put("telefono", phone.trim())
+                    })
+                }
+
+                db.setTransactionSuccessful()
+                ActionResult.Success("Perfil actualizado")
+            }
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudo actualizar el perfil")
+        } finally {
+            db.endTransaction()
         }
     }
 
@@ -495,6 +650,21 @@ class FitGymRepository(context: Context) {
         return streak
     }
 
+    private fun calculateCurrentStreakDays(userId: Int): Int {
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val dates = dbHelper.readableDatabase.rawQuery(
+            "SELECT DISTINCT fecha FROM actividad_usuario WHERE id_usuario = ? ORDER BY fecha DESC",
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    formatter.parse(cursor.getString(0))?.let { add(it) }
+                }
+            }
+        }
+        return calculateCurrentStreak(dates, formatter)
+    }
+
     private data class LoginRow(
         val userId: Int,
         val userName: String,
@@ -510,4 +680,9 @@ sealed class LoginResult {
 sealed class RegisterResult {
     data class Success(val userId: Int, val userName: String) : RegisterResult()
     data class Error(val message: String) : RegisterResult()
+}
+
+sealed class ActionResult {
+    data class Success(val message: String) : ActionResult()
+    data class Error(val message: String) : ActionResult()
 }

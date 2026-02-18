@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -98,30 +99,77 @@ fun PantallaInicio(
 
             // Resumen de Actividad
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TarjetaResumen("Calorías", "${data.calories} kcal", Icons.Default.Whatshot, Color(0xFFFFEBEB), Color(0xFFFF5252), Modifier.weight(1f))
-                TarjetaResumen("Tiempo", data.trainingHours, Icons.Default.Timer, Color(0xFFEBF5FF), Color(0xFF3B82F6), Modifier.weight(1f))
+                CardInicioAccion("Reservar clase", "Ver clases", Icons.Default.DateRange, alIrAClases, Modifier.weight(1f))
+                CardInicioAccion("Música del gym", "Abrir Spotify", Icons.Default.LibraryMusic, {}, Modifier.weight(1f))
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Sección Clases de Hoy
-            SeccionCabecera("Clases de hoy", alIrAClases)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CardInicioAccion("Mi progreso", "Ir a análisis", Icons.Default.BarChart, alIrAAnalisis, Modifier.weight(1f))
+                CardInicioAccion("Mi historial", "Clases asistidas", Icons.Default.History, alIrAClases, Modifier.weight(1f))
+            }
 
-            // Lista de clases
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (data.todayClasses.isEmpty()) {
-                    Text("No hay clases reservadas", color = Color.Gray)
-                } else {
-                    data.todayClasses.forEach { clase ->
-                        ItemClaseHoy(
-                            nombre = clase.className,
-                            hora = clase.startTime,
-                            sala = clase.roomName,
-                            icono = iconByClass(clase.className)
-                        )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text("Siguiente clase", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+            val nextClass = data.todayClasses.firstOrNull()
+            if (nextClass != null) {
+                ItemClaseHoy(
+                    nombre = nextClass.className,
+                    hora = nextClass.startTime,
+                    sala = nextClass.roomName,
+                    icono = iconByClass(nextClass.className)
+                )
+            } else {
+                Text("No tienes clases próximas", color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Registro de visita", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Racha actual: ${data.streakDays} días", color = Color.Gray)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TarjetaResumen("Calorías", "${data.calories} kcal", Icons.Default.Whatshot, Color(0xFFFFEBEB), Color(0xFFFF5252), Modifier.weight(1f))
+                        TarjetaResumen("Tiempo", data.trainingHours, Icons.Default.Timer, Color(0xFFEBF5FF), Color(0xFF3B82F6), Modifier.weight(1f))
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Puedes registrar entrenamientos completos desde Análisis",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                 }
             }
+
+        }
+    }
+}
+
+@Composable
+private fun CardInicioAccion(titulo: String, subtitulo: String, icono: ImageVector, onClick: () -> Unit, modifier: Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        onClick = onClick
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Icon(icono, null)
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(titulo, fontWeight = FontWeight.Bold)
+            Text(subtitulo, fontSize = 12.sp, color = Color.Gray)
         }
     }
 }

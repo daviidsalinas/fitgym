@@ -51,7 +51,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -60,6 +63,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,8 +74,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.model.ui.ProfileData
+import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
@@ -85,12 +91,17 @@ fun PantallaPerfil(
     modoOscuroActivado: Boolean,
     onModoOscuroChanged: (Boolean) -> Unit,
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit
+    alAbrirNotificaciones: () -> Unit,
+    alCerrarSesion: () -> Unit
 ) {
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
 
-    val profileData by produceState<ProfileData?>(initialValue = null, userId) {
+    var refreshKey by remember { mutableStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val profileData by produceState<ProfileData?>(initialValue = null, userId, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getProfileData(userId) }
     }
 
@@ -98,7 +109,10 @@ fun PantallaPerfil(
         mutableStateOf(profileData?.notificationsEnabled ?: true)
     }
 
+    var mostrandoEditor by remember { mutableStateOf(false) }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
@@ -136,6 +150,27 @@ fun PantallaPerfil(
 
         val data = profileData!!
 
+        if (mostrandoEditor) {
+            DialogoEditarPerfil(
+                data = data,
+                onDismiss = { mostrandoEditor = false },
+                onGuardar = { email, phone, age, weight, height ->
+                    scope.launch {
+                        when (val result = withContext(Dispatchers.IO) {
+                            repository.updateProfileData(userId, email, phone, age, weight, height)
+                        }) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                refreshKey += 1
+                                mostrandoEditor = false
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }
+            )
+        }
+
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -167,7 +202,7 @@ fun PantallaPerfil(
                             Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(50.dp))
                         }
                         IconButton(
-                            onClick = { },
+                            onClick = { mostrandoEditor = true },
                             modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.surface, CircleShape).border(1.dp, Color.LightGray, CircleShape)
                         ) {
                             Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface)
@@ -228,7 +263,7 @@ fun PantallaPerfil(
 
             // 6. Botón Cerrar Sesión
             Button(
-                onClick = { /* Lógica logout */ },
+                onClick = alCerrarSesion,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF3D00)),
                 shape = RoundedCornerShape(16.dp)
@@ -241,6 +276,45 @@ fun PantallaPerfil(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun DialogoEditarPerfil(
+    data: ProfileData,
+    onDismiss: () -> Unit,
+    onGuardar: (String, String, Int, Double, Double) -> Unit
+) {
+    var email by remember(data.email) { mutableStateOf(data.email) }
+    var phone by remember(data.phone) { mutableStateOf(data.phone) }
+    var age by remember(data.age) { mutableStateOf(data.age.toString()) }
+    var weight by remember(data.weightKg) { mutableStateOf(data.weightKg.toString()) }
+    var height by remember(data.heightCm) { mutableStateOf(data.heightCm.toString()) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = {
+                onGuardar(
+                    email,
+                    phone,
+                    age.toIntOrNull() ?: 0,
+                    weight.toDoubleOrNull() ?: 0.0,
+                    height.toDoubleOrNull() ?: 0.0
+                )
+            }) { Text("Guardar") }
+        },
+        dismissButton = { Button(onClick = onDismiss) { Text("Cancelar") } },
+        title = { Text("Editar perfil") },
+        text = {
+            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
+                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Teléfono") })
+                OutlinedTextField(value = age, onValueChange = { age = it.filter(Char::isDigit) }, label = { Text("Edad") })
+                OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Peso (kg)") })
+                OutlinedTextField(value = height, onValueChange = { height = it }, label = { Text("Altura (cm)") })
+            }
+        }
+    )
 }
 
 // --- SUB-COMPONENTES AUXILIARES ---

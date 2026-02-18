@@ -41,13 +41,20 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,8 +64,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.model.ui.AnalysisData
+import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
@@ -74,12 +83,17 @@ fun PantallaAnalisis(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var refreshKey by remember { mutableIntStateOf(0) }
+    var minutosEntrenamiento by remember { mutableStateOf("") }
 
-    val analysisData by produceState<AnalysisData?>(initialValue = null, userId) {
+    val analysisData by produceState<AnalysisData?>(initialValue = null, userId, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAnalysisData(userId) }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
@@ -158,6 +172,45 @@ fun PantallaAnalisis(
                         Text(" días consecutivos", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
                     }
                     Text("¡Increíble! Tu constancia está dando frutos", color = Color.Gray, fontSize = 12.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Registrar entrenamiento", fontWeight = FontWeight.Bold)
+                    Text("Añade minutos para mejorar tu análisis", color = Color.Gray, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = minutosEntrenamiento,
+                            onValueChange = { minutosEntrenamiento = it.filter(Char::isDigit) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            label = { Text("Minutos") }
+                        )
+                        IconButton(onClick = {
+                            val minutes = minutosEntrenamiento.toIntOrNull() ?: 0
+                            scope.launch {
+                                when (val result = withContext(Dispatchers.IO) { repository.registerWorkout(userId, minutes) }) {
+                                    is ActionResult.Success -> {
+                                        snackbarHostState.showSnackbar(result.message)
+                                        minutosEntrenamiento = ""
+                                        refreshKey++
+                                    }
+                                    is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.Bolt, null)
+                        }
+                    }
                 }
             }
 

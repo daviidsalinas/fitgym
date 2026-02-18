@@ -42,12 +42,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,14 +62,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.model.ui.ReservationDetailData
+import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaDetalleReserva(
     userId: Int,
+    scheduleId: Int,
+    alAbrirMenu: () -> Unit,
+    alAbrirNotificaciones: () -> Unit,
     alVolverAClases: () -> Unit,
     alIrAInicio: () -> Unit,
     alIrAAnalisis: () -> Unit,
@@ -72,19 +82,28 @@ fun PantallaDetalleReserva(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var reservando by remember { mutableStateOf(false) }
 
-    val reservationDetail by produceState<ReservationDetailData?>(initialValue = null, userId) {
-        value = withContext(Dispatchers.IO) { repository.getReservationDetail(userId) }
+    val reservationDetail by produceState<ReservationDetailData?>(initialValue = null, scheduleId) {
+        value = withContext(Dispatchers.IO) {
+            if (scheduleId > 0) repository.getReservationDetailForSchedule(scheduleId)
+            else repository.getReservationDetail(userId)
+        }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
-                navigationIcon = { IconButton(onClick = {}) { Icon(Icons.Default.Menu, null) } },
+                navigationIcon = { IconButton(onClick = alAbrirMenu) { Icon(Icons.Default.Menu, null) } },
                 actions = {
-                    BadgedBox(badge = { Badge { Text("2") } }) {
-                        Icon(Icons.Default.Notifications, null)
+                    IconButton(onClick = alAbrirNotificaciones) {
+                        BadgedBox(badge = { Badge { Text("2") } }) {
+                            Icon(Icons.Default.Notifications, null)
+                        }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                 }
@@ -174,12 +193,26 @@ fun PantallaDetalleReserva(
 
             // Botón de Acción Final
             Button(
-                onClick = { /* Lógica de reserva */ },
+                onClick = {
+                    scope.launch {
+                        reservando = true
+                        val result = withContext(Dispatchers.IO) { repository.reserveClass(userId, scheduleId) }
+                        reservando = false
+                        when (result) {
+                            is ActionResult.Success -> snackbarHostState.showSnackbar(result.message)
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("Reservar Plaza", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                shape = RoundedCornerShape(16.dp),
+                enabled = !reservando && scheduleId > 0            ) {
+                if (reservando) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text("Reservar Plaza", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

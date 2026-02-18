@@ -23,6 +23,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.*
 import com.example.fitgymkt.screen.*
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -39,6 +40,8 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
                 var usuarioSesion by remember { mutableStateOf<UsuarioSesion?>(null) }
+                var rutaActual by remember { mutableStateOf("splash") }
+                val drawerHabilitado = usuarioSesion != null && rutaActual !in setOf("splash", "login", "registro")
 
 
                 // 2. Diálogo Global de Notificaciones
@@ -48,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
+                    gesturesEnabled = drawerHabilitado,
                     drawerContent = {
                         ContenidoMenuLateral(
                             nombreUsuario = usuarioSesion?.userName ?: "Invitado",
@@ -64,7 +68,11 @@ class MainActivity : ComponentActivity() {
                         alCambiarSesion = { usuarioSesion = it },
                         modoOscuroActual = esModoOscuro,
                         alCambiarModoOscuro = { esModoOscuro = it },
-                        alAbrirMenu = { scope.launch { drawerState.open() } },
+                        alAbrirMenu = {
+                            if (drawerHabilitado) {
+                                scope.launch { drawerState.open() }
+                            }
+                        },
                         alAbrirNotificaciones = { mostrarNotificaciones = true } // Acción para la campana
                     )
                 }
@@ -76,6 +84,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NavegacionPrincipal(
     usuarioSesion: UsuarioSesion?,
+    onRutaCambiada: (String) -> Unit,
     alCambiarSesion: (UsuarioSesion?) -> Unit,
     modoOscuroActual: Boolean,
     alCambiarModoOscuro: (Boolean) -> Unit,
@@ -83,6 +92,11 @@ fun NavegacionPrincipal(
     alAbrirNotificaciones: () -> Unit
 ) {
     val controladorNavegacion = rememberNavController()
+    LaunchedEffect(controladorNavegacion) {
+        controladorNavegacion.currentBackStackEntryFlow.collectLatest { entry ->
+            onRutaCambiada(entry.destination.route ?: "")
+        }
+    }
 
     LaunchedEffect(usuarioSesion) {
         // Solo redirige al login si ya pasó el splash (no está en "splash" ni en "login")
@@ -138,12 +152,13 @@ fun NavegacionPrincipal(
         }
         composable("clases") {
             PantallaClases(
+                userId = usuarioSesion?.userId ?: 1,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
                 alIrAPerfil = { controladorNavegacion.navigate("perfil") },
-                alIrADetalle = { controladorNavegacion.navigate("detalle_reserva") }
+                alIrADetalle = { scheduleId -> controladorNavegacion.navigate("detalle_reserva/$scheduleId") }
             )
         }
         composable("analisis") {
@@ -165,12 +180,19 @@ fun NavegacionPrincipal(
                 alIrAClases = { controladorNavegacion.navigate("clases") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
                 modoOscuroActivado = modoOscuroActual,
-                onModoOscuroChanged = alCambiarModoOscuro
+                onModoOscuroChanged = alCambiarModoOscuro,
+                alCerrarSesion = {
+                    alCambiarSesion(null)
+                    controladorNavegacion.navigate("login") { popUpTo(controladorNavegacion.graph.id) { inclusive = true } }
+                }
             )
         }
-        composable("detalle_reserva") {
+        composable("detalle_reserva/{scheduleId}") { backStackEntry ->
             PantallaDetalleReserva(
                 userId = usuarioSesion?.userId ?: 1,
+                scheduleId = backStackEntry.arguments?.getString("scheduleId")?.toIntOrNull() ?: -1,
+                alAbrirMenu = alAbrirMenu,
+                alAbrirNotificaciones = alAbrirNotificaciones,
                 alVolverAClases = { controladorNavegacion.popBackStack() },
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },

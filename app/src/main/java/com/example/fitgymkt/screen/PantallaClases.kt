@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.model.ui.ClassWithSchedules
@@ -27,8 +28,9 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaClases(
+    userId: Int,
     alIrAInicio: () -> Unit,
-    alIrADetalle: () -> Unit,
+    alIrADetalle: (Int) -> Unit,
     alIrAAnalisis: () -> Unit,
     alIrAPerfil: () -> Unit,
     alAbrirMenu: () -> Unit,
@@ -166,7 +168,7 @@ fun TarjetaClaseDesplegable(
     colorBase: Color,
     estaExpandida: Boolean,
     onExpandClick: () -> Unit,
-    onHorarioClick: () -> Unit,
+    onHorarioClick: (Int) -> Unit,
     horarios: List<com.example.fitgymkt.model.ui.ClassScheduleItem>
 ) {
     Card(
@@ -181,15 +183,22 @@ fun TarjetaClaseDesplegable(
             Box(modifier = Modifier.fillMaxWidth().height(140.dp).background(colorBase)) {
                 Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
                     Text(titulo, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(subtitulo, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Text(
+                        subtitulo,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(horariosCount, color = Color.White, fontSize = 12.sp)
                         Spacer(modifier = Modifier.weight(1f))
-                        if (!estaExpandida) {
-                            Text(horariosCount, color = Color.White, fontSize = 12.sp)
-                            Icon(Icons.Default.KeyboardArrowDown, null, tint = Color.White)
-                        } else {
-                            Icon(Icons.Default.KeyboardArrowUp, null, tint = Color.White)
-                        }
+                        Icon(
+                            if (estaExpandida) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            null,
+                            tint = Color.White
+                        )
                     }
                 }
             }
@@ -202,6 +211,7 @@ fun TarjetaClaseDesplegable(
                             dia = horario.weekDay,
                             plazas = "${horario.occupiedSlots}/${horario.totalSlots}",
                             instructor = horario.instructorName,
+                            scheduleId = horario.scheduleId,
                             esCritico = horario.totalSlots - horario.occupiedSlots <= 3,
                             onClick = onHorarioClick
                         )
@@ -217,17 +227,18 @@ fun TarjetaClaseDesplegable(
 fun FilaHorario(
     hora: String,
     dia: String,
+    scheduleId: Int,
     plazas: String,
     instructor: String,
     esCritico: Boolean = false,
-    onClick: () -> Unit
+    onClick: (Int) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp),
-        onClick = onClick
+        onClick = { onClick(scheduleId) }
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(18.dp))
