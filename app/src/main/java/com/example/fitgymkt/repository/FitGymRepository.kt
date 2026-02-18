@@ -11,7 +11,6 @@ import com.example.fitgymkt.model.ui.HomeData
 import com.example.fitgymkt.model.ui.ProfileData
 import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.model.ui.TodayClassItem
-import java.time.LocalDate
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -322,7 +321,7 @@ class FitGymRepository(context: Context) {
             put("id_usuario", userId)
             put("id_horario", scheduleId)
             put("estado", "reservada")
-            put("fecha_reserva", LocalDate.now().toString())
+            put("fecha_reserva", currentDateIso())
         }
 
         return try {
@@ -338,7 +337,7 @@ class FitGymRepository(context: Context) {
 
         val values = ContentValues().apply {
             put("id_usuario", userId)
-            put("fecha", LocalDate.now().toString())
+            put("fecha", currentDateIso())
             put("duracion_minutos", minutes)
         }
 
@@ -349,6 +348,9 @@ class FitGymRepository(context: Context) {
             ActionResult.Error("No se pudo registrar el entrenamiento")
         }
     }
+
+    private fun currentDateIso(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
     fun updateProfileData(
         userId: Int,

@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     NavegacionPrincipal(
                         usuarioSesion = usuarioSesion,
+                        onRutaCambiada = { rutaActual = it },
                         alCambiarSesion = { usuarioSesion = it },
                         modoOscuroActual = esModoOscuro,
                         alCambiarModoOscuro = { esModoOscuro = it },
@@ -92,6 +93,7 @@ fun NavegacionPrincipal(
     alAbrirNotificaciones: () -> Unit
 ) {
     val controladorNavegacion = rememberNavController()
+
     LaunchedEffect(controladorNavegacion) {
         controladorNavegacion.currentBackStackEntryFlow.collectLatest { entry ->
             onRutaCambiada(entry.destination.route ?: "")
