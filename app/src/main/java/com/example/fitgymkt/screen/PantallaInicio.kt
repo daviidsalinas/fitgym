@@ -1,5 +1,8 @@
 package com.example.fitgymkt.screen
 
+import android.content.Intent
+import android.net.Uri
+
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,20 +13,24 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.example.fitgymkt.model.ui.HomeData
+import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,16 +41,22 @@ fun PantallaInicio(
     alAbrirNotificaciones: () -> Unit,
     alIrAClases: () -> Unit,
     alIrAAnalisis: () -> Unit,
-    alIrAPerfil: () -> Unit
+    alIrAPerfil: () -> Unit,
+    alIrAHistorial: () -> Unit
 ) {
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var horasEntrenamiento by remember { mutableIntStateOf(0) }
+    var minutosEntrenamiento by remember { mutableIntStateOf(30) }
 
     val homeData by produceState<HomeData?>(initialValue = null, userId) {
         value = withContext(Dispatchers.IO) { repository.getHomeData(userId = userId) }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
@@ -71,8 +84,9 @@ fun PantallaInicio(
             }
         }
     ) { padding ->
+
         if (homeData == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
             return@Scaffold
@@ -100,14 +114,16 @@ fun PantallaInicio(
             // Resumen de Actividad
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CardInicioAccion("Reservar clase", "Ver clases", Icons.Default.DateRange, alIrAClases, Modifier.weight(1f))
-                CardInicioAccion("Música del gym", "Abrir Spotify", Icons.Default.LibraryMusic, {}, Modifier.weight(1f))
+                CardInicioAccion("Música del gym", "Abrir Spotify", Icons.Default.LibraryMusic, {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com/playlist/37i9dQZF1DXaxEKcoCdWHD?si=32f691f5ae2c4c86")))
+                }, Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CardInicioAccion("Mi progreso", "Ir a análisis", Icons.Default.BarChart, alIrAAnalisis, Modifier.weight(1f))
-                CardInicioAccion("Mi historial", "Clases asistidas", Icons.Default.History, alIrAClases, Modifier.weight(1f))
+                CardInicioAccion("Mi historial", "Mis reservas", Icons.Default.History, alIrAHistorial, Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -128,31 +144,64 @@ fun PantallaInicio(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Registro de visita", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text("Racha actual: ${data.streakDays} días", color = Color.Gray)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TarjetaResumen("Calorías", "${data.calories} kcal", Icons.Default.Whatshot, Color(0xFFFFEBEB), Color(0xFFFF5252), Modifier.weight(1f))
-                        TarjetaResumen("Tiempo", data.trainingHours, Icons.Default.Timer, Color(0xFFEBF5FF), Color(0xFF3B82F6), Modifier.weight(1f))
+            TarjetaRegistroEntrenamiento(
+                horasEntrenamiento = horasEntrenamiento,
+                minutosEntrenamiento = minutosEntrenamiento,
+                onHorasChange = { horasEntrenamiento = it },
+                onMinutosChange = { minutosEntrenamiento = it },
+                onRegistrar = {
+                    scope.launch {
+                        when (val result = withContext(Dispatchers.IO) { repository.registerWorkout(userId, (horasEntrenamiento * 60) + minutosEntrenamiento) }) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                horasEntrenamiento = 0
+                                minutosEntrenamiento = 30
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Puedes registrar entrenamientos completos desde Análisis",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
                 }
-            }
+            )
 
         }
+    }
+}
+
+@Composable
+private fun TarjetaRegistroEntrenamiento(
+    horasEntrenamiento: Int,
+    minutosEntrenamiento: Int,
+    onHorasChange: (Int) -> Unit,
+    onMinutosChange: (Int) -> Unit,
+    onRegistrar: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Registrar entrenamiento", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("Disponible en Inicio y Análisis", color = Color.Gray, fontSize = 12.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
+                AjustadorNumero("Horas", horasEntrenamiento, 0..8, onHorasChange)
+                AjustadorNumero("Min", minutosEntrenamiento, 0..59, onMinutosChange)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onRegistrar, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Bolt, null)
+                Text(" Registrar ${(horasEntrenamiento * 60) + minutosEntrenamiento} min")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AjustadorNumero(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { onChange((value - 1).coerceAtLeast(range.first)) }) { Icon(Icons.Default.Remove, null) }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, fontSize = 12.sp, color = Color.Gray)
+            Text(value.toString().padStart(2, '0'), fontWeight = FontWeight.Bold)
+        }
+        IconButton(onClick = { onChange((value + 1).coerceAtMost(range.last)) }) { Icon(Icons.Default.Add, null) }
     }
 }
 
@@ -183,40 +232,6 @@ private fun iconByClass(className: String): ImageVector {
 }
 
 @Composable
-fun TarjetaResumen(titulo: String, valor: String, icono: ImageVector, fondoIcono: Color, colorIcono: Color, modifier: Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Box(modifier = Modifier.size(40.dp).background(fondoIcono, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(icono, null, tint = colorIcono, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(titulo, fontSize = 14.sp, color = Color.Gray)
-            Text(valor, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-        }
-    }
-}
-
-@Composable
-fun SeccionCabecera(titulo: String, alClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(titulo, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        TextButton(onClick = alClick) {
-            Text("Ver todas", color = MaterialTheme.colorScheme.primary)
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-@Composable
 fun ItemClaseHoy(nombre: String, hora: String, sala: String, icono: ImageVector) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -224,7 +239,6 @@ fun ItemClaseHoy(nombre: String, hora: String, sala: String, icono: ImageVector)
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Fondo del icono adaptado: Negro en modo claro, Blanco/Gris en modo oscuro
             Box(
                 modifier = Modifier
                     .size(48.dp)

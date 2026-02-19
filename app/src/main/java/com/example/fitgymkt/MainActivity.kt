@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.*
+import com.example.fitgymkt.model.ui.AppNotification
+import com.example.fitgymkt.model.ui.SubscriptionStatus
+import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.screen.*
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -30,23 +34,45 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // 1. Estados Globales
             var esModoOscuro by remember { mutableStateOf(false) }
-            var mostrarNotificaciones by remember { mutableStateOf(false) } // Estado para el diálogo
+            var mostrarNotificaciones by remember { mutableStateOf(false) }
+            var mostrarSuscripcion by remember { mutableStateOf(false) }
+            var mostrarContacto by remember { mutableStateOf(false) }
+            var notificaciones by remember { mutableStateOf(listOf<AppNotification>()) }
+            var suscripcion by remember { mutableStateOf<SubscriptionStatus?>(null) }
 
             val colores = if (esModoOscuro) darkColorScheme() else lightColorScheme()
 
             MaterialTheme(colorScheme = colores) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val repository = remember(context) { FitGymRepository(context) }
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
                 var usuarioSesion by remember { mutableStateOf<UsuarioSesion?>(null) }
+                var rutaSolicitada by remember { mutableStateOf<String?>(null) }
                 var rutaActual by remember { mutableStateOf("splash") }
                 val drawerHabilitado = usuarioSesion != null && rutaActual !in setOf("splash", "login", "registro")
 
+                LaunchedEffect(usuarioSesion?.userId) {
+                    val userId = usuarioSesion?.userId ?: return@LaunchedEffect
+                    notificaciones = repository.getNotifications(userId)
+                    suscripcion = repository.getCurrentSubscription(userId)
+                }
 
-                // 2. Diálogo Global de Notificaciones
                 if (mostrarNotificaciones) {
-                    DialogoNotificacionesGlobal(onDismiss = { mostrarNotificaciones = false })
+                    DialogoNotificacionesGlobal(
+                        notificaciones = notificaciones,
+                        onDismiss = { mostrarNotificaciones = false },
+                        onMarcarLeidas = { notificaciones = notificaciones.map { it.copy(read = true) } }
+                    )
+                }
+
+                if (mostrarSuscripcion) {
+                    DialogoSuscripcionGlobal(suscripcion = suscripcion, onDismiss = { mostrarSuscripcion = false })
+                }
+
+                if (mostrarContacto) {
+                    DialogoContactoSoporte(onDismiss = { mostrarContacto = false })
                 }
 
                 ModalNavigationDrawer(
@@ -55,7 +81,14 @@ class MainActivity : ComponentActivity() {
                     drawerContent = {
                         ContenidoMenuLateral(
                             nombreUsuario = usuarioSesion?.userName ?: "Invitado",
+                            subscription = suscripcion,
                             alCerrar = { scope.launch { drawerState.close() } },
+                            alVerSuscripcion = { mostrarSuscripcion = true },
+                            alVerContacto = { mostrarContacto = true },
+                            alVerHistorial = {
+                                rutaSolicitada = "historial"
+                                scope.launch { drawerState.close() }
+                            },
                             alCerrarSesion = {
                                 usuarioSesion = null
                                 scope.launch { drawerState.close() }
@@ -70,11 +103,12 @@ class MainActivity : ComponentActivity() {
                         modoOscuroActual = esModoOscuro,
                         alCambiarModoOscuro = { esModoOscuro = it },
                         alAbrirMenu = {
-                            if (drawerHabilitado) {
-                                scope.launch { drawerState.open() }
-                            }
+                            if (drawerHabilitado) scope.launch { drawerState.open() }
                         },
-                        alAbrirNotificaciones = { mostrarNotificaciones = true } // Acción para la campana
+                        alAbrirNotificaciones = { mostrarNotificaciones = true },
+                        unreadNotifications = notificaciones.count { !it.read },
+                        rutaSolicitada = rutaSolicitada,
+                        alConsumirRutaSolicitada = { rutaSolicitada = null }
                     )
                 }
             }
@@ -90,9 +124,19 @@ fun NavegacionPrincipal(
     modoOscuroActual: Boolean,
     alCambiarModoOscuro: (Boolean) -> Unit,
     alAbrirMenu: () -> Unit,
-    alAbrirNotificaciones: () -> Unit
+    alAbrirNotificaciones: () -> Unit,
+    unreadNotifications: Int,
+    rutaSolicitada: String?,
+    alConsumirRutaSolicitada: () -> Unit
 ) {
     val controladorNavegacion = rememberNavController()
+
+    LaunchedEffect(rutaSolicitada) {
+        rutaSolicitada?.let {
+            controladorNavegacion.navigate(it)
+            alConsumirRutaSolicitada()
+        }
+    }
 
     LaunchedEffect(controladorNavegacion) {
         controladorNavegacion.currentBackStackEntryFlow.collectLatest { entry ->
@@ -101,7 +145,6 @@ fun NavegacionPrincipal(
     }
 
     LaunchedEffect(usuarioSesion) {
-        // Solo redirige al login si ya pasó el splash (no está en "splash" ni en "login")
         val rutaActual = controladorNavegacion.currentDestination?.route
         if (usuarioSesion == null && rutaActual != "login" && rutaActual != "splash") {
             controladorNavegacion.navigate("login") {
@@ -118,11 +161,9 @@ fun NavegacionPrincipal(
                     controladorNavegacion.navigate(destino) {
                         popUpTo("splash") { inclusive = true }
                     }
-                },
-                delayMs = 2500L
+                }
             )
         }
-
         composable("login") {
             PantallaLogin(
                 alIrARegistro = { controladorNavegacion.navigate("registro") },
@@ -139,7 +180,6 @@ fun NavegacionPrincipal(
                     alCambiarSesion(UsuarioSesion(userId = userId, userName = userName))
                     controladorNavegacion.navigate("inicio") { popUpTo("login") { inclusive = true } }
                 }
-
             )
         }
         composable("inicio") {
@@ -149,7 +189,8 @@ fun NavegacionPrincipal(
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAClases = { controladorNavegacion.navigate("clases") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
-                alIrAPerfil = { controladorNavegacion.navigate("perfil") }
+                alIrAPerfil = { controladorNavegacion.navigate("perfil") },
+                alIrAHistorial = { controladorNavegacion.navigate("historial") }
             )
         }
         composable("clases") {
@@ -201,12 +242,27 @@ fun NavegacionPrincipal(
                 alIrAPerfil = { controladorNavegacion.navigate("perfil") }
             )
         }
+        composable("historial") {
+            PantallaHistorial(
+                userId = usuarioSesion?.userId ?: 1,
+                alAbrirMenu = alAbrirMenu,
+                alAbrirNotificaciones = alAbrirNotificaciones,
+                alIrAInicio = { controladorNavegacion.navigate("inicio") },
+                alIrAClases = { controladorNavegacion.navigate("clases") },
+                alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
+                alIrAPerfil = { controladorNavegacion.navigate("perfil") },
+                unreadNotifications = unreadNotifications
+            )
+        }
     }
 }
 
-// --- Componente de Notificaciones adaptado de tu diseño ---
 @Composable
-fun DialogoNotificacionesGlobal(onDismiss: () -> Unit) {
+fun DialogoNotificacionesGlobal(
+    notificaciones: List<AppNotification>,
+    onDismiss: () -> Unit,
+    onMarcarLeidas: () -> Unit
+) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -222,13 +278,13 @@ fun DialogoNotificacionesGlobal(onDismiss: () -> Unit) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Notificaciones", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("2 sin leer", color = Color.Gray, fontSize = 12.sp)
+                        Text("${notificaciones.count { !it.read }} sin leer", color = Color.Gray, fontSize = 12.sp)
                     }
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null) }
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = onMarcarLeidas,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = Color.Black),
                     shape = RoundedCornerShape(12.dp)
@@ -237,9 +293,9 @@ fun DialogoNotificacionesGlobal(onDismiss: () -> Unit) {
                     Text(" Marcar todas como leídas", fontSize = 13.sp)
                 }
 
-                ItemNoti("Clase próxima", "Tu clase de Yoga Flow comienza en 30 min", "Hace 5 min", true)
-                ItemNoti("¡Logro desbloqueado!", "Has completado 7 días consecutivos", "Hace 1 hora", true)
-                ItemNoti("Recordatorio", "No olvides registrar tu peso semanal", "Hace 3 horas", false)
+                notificaciones.forEach {
+                    ItemNoti(it.title, it.description, it.timestamp, !it.read)
+                }
             }
         }
     }
@@ -267,7 +323,15 @@ fun ItemNoti(titulo: String, desc: String, tiempo: String, esNueva: Boolean) {
 }
 
 @Composable
-fun ContenidoMenuLateral(nombreUsuario: String, alCerrar: () -> Unit, alCerrarSesion: () -> Unit) {
+fun ContenidoMenuLateral(
+    nombreUsuario: String,
+    subscription: SubscriptionStatus?,
+    alCerrar: () -> Unit,
+    alVerSuscripcion: () -> Unit,
+    alVerContacto: () -> Unit,
+    alVerHistorial: () -> Unit,
+    alCerrarSesion: () -> Unit
+) {
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
         drawerContainerColor = MaterialTheme.colorScheme.surface
@@ -286,10 +350,10 @@ fun ContenidoMenuLateral(nombreUsuario: String, alCerrar: () -> Unit, alCerrarSe
                 }
             }
             Spacer(modifier = Modifier.height(40.dp))
-            ItemMenuLateral(Icons.Default.FavoriteBorder, "Mis Favoritos")
-            ItemMenuLateral(Icons.Default.CreditCard, "Suscripción")
-            ItemMenuLateral(Icons.Default.HeadsetMic, "Contacto y Soporte")
-            ItemMenuLateral(Icons.Default.History, "Historial")
+            ItemMenuLateral(Icons.Default.CreditCard, "Suscripción", onClick = alVerSuscripcion)
+            Text(subscription?.let { "Vence: ${it.endDate}" } ?: "Sin suscripción activa", fontSize = 12.sp, color = Color.Gray)
+            ItemMenuLateral(Icons.Default.HeadsetMic, "Contacto y Soporte", onClick = alVerContacto)
+            ItemMenuLateral(Icons.Default.History, "Historial", onClick = alVerHistorial)
             Spacer(modifier = Modifier.weight(1f))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             TextButton(onClick = alCerrarSesion, modifier = Modifier.fillMaxWidth()) {
@@ -309,13 +373,38 @@ data class UsuarioSesion(
 )
 
 @Composable
-fun ItemMenuLateral(icono: ImageVector, texto: String) {
+fun ItemMenuLateral(icono: ImageVector, texto: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icono, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.width(20.dp))
         Text(texto, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
+}
+
+@Composable
+fun DialogoSuscripcionGlobal(suscripcion: SubscriptionStatus?, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
+        title = { Text("Suscripción") },
+        text = {
+            Text(
+                suscripcion?.let { "Plan ${it.type}\nEstado: ${it.status}\nVence: ${it.endDate}" }
+                    ?: "No tienes una suscripción activa"
+            )
+        }
+    )
+}
+
+@Composable
+fun DialogoContactoSoporte(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
+        title = { Text("Contacto y soporte") },
+        text = { Text("FitGym\nTel: +34 900 123 456\nEmail: soporte@fitgym.com\nHorario: Lun-Vie 07:00 a 22:00") }
+    )
 }

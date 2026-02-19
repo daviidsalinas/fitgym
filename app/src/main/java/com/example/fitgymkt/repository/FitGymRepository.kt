@@ -8,13 +8,18 @@ import com.example.fitgymkt.model.ui.AnalysisData
 import com.example.fitgymkt.model.ui.ClassScheduleItem
 import com.example.fitgymkt.model.ui.ClassWithSchedules
 import com.example.fitgymkt.model.ui.HomeData
+import com.example.fitgymkt.model.ui.AppNotification
 import com.example.fitgymkt.model.ui.ProfileData
 import com.example.fitgymkt.model.ui.ReservationDetailData
+import com.example.fitgymkt.model.ui.SubscriptionStatus
 import com.example.fitgymkt.model.ui.TodayClassItem
+import com.example.fitgymkt.model.ui.UserReservationItem
+import com.example.fitgymkt.model.ui.WorkoutHistoryItem
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class FitGymRepository(context: Context) {
 
@@ -390,6 +395,134 @@ class FitGymRepository(context: Context) {
         } catch (_: Exception) {
             ActionResult.Error("No se pudo registrar el entrenamiento")
         }
+    }
+
+    fun getUserReservations(userId: Int): List<UserReservationItem> {
+        val db = dbHelper.readableDatabase
+        return db.rawQuery(
+            """
+            SELECT c.nombre, h.fecha, h.hora_inicio, r.estado
+            FROM reserva r
+            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
+            INNER JOIN clase c ON c.id_clase = h.id_clase
+            WHERE r.id_usuario = ?
+            ORDER BY h.fecha DESC, h.hora_inicio DESC
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        UserReservationItem(
+                            className = cursor.getString(0),
+                            date = cursor.getString(1),
+                            time = cursor.getString(2),
+                            state = cursor.getString(3)
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun getWorkoutHistory(userId: Int): List<WorkoutHistoryItem> {
+        val db = dbHelper.readableDatabase
+        return db.rawQuery(
+            """
+            SELECT fecha, duracion_minutos
+            FROM actividad_usuario
+            WHERE id_usuario = ?
+            ORDER BY fecha DESC
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(WorkoutHistoryItem(date = cursor.getString(0), durationMinutes = cursor.getInt(1)))
+                }
+            }
+        }
+    }
+
+    fun getCurrentSubscription(userId: Int): SubscriptionStatus? {
+        val db = dbHelper.readableDatabase
+        return db.rawQuery(
+            """
+            SELECT tipo, COALESCE(fecha_fin, ''), COALESCE(estado, '')
+            FROM suscripcion
+            WHERE id_usuario = ?
+            ORDER BY COALESCE(fecha_fin, fecha_inicio) DESC
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            SubscriptionStatus(
+                type = cursor.getString(0),
+                endDate = cursor.getString(1),
+                status = cursor.getString(2)
+            )
+        }
+    }
+
+    fun getNotifications(userId: Int): List<AppNotification> {
+        val notifications = mutableListOf<AppNotification>()
+        val subscription = getCurrentSubscription(userId)
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+        if (subscription?.endDate?.isNotBlank() == true) {
+            val endDate = formatter.parse(subscription.endDate)
+            if (endDate != null) {
+                val daysLeft = TimeUnit.MILLISECONDS.toDays(endDate.time - Date().time)
+                notifications += AppNotification(
+                    id = "subscription",
+                    title = "Suscripción",
+                    description = if (daysLeft >= 0) {
+                        "Tu plan ${subscription.type} vence en $daysLeft días"
+                    } else {
+                        "Tu suscripción ${subscription.type} está vencida"
+                    },
+                    timestamp = "Hoy",
+                    read = daysLeft > 7
+                )
+            }
+        }
+
+        val nextClass = dbHelper.readableDatabase.rawQuery(
+            """
+            SELECT c.nombre, h.fecha, h.hora_inicio
+            FROM reserva r
+            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
+            INNER JOIN clase c ON c.id_clase = h.id_clase
+            WHERE r.id_usuario = ? AND r.estado = 'reservada'
+            ORDER BY h.fecha ASC, h.hora_inicio ASC
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) null else Triple(cursor.getString(0), cursor.getString(1), cursor.getString(2))
+        }
+
+        if (nextClass != null) {
+            notifications += AppNotification(
+                id = "next-class",
+                title = "Clase reservada",
+                description = "${nextClass.first} el ${nextClass.second} a las ${nextClass.third}",
+                timestamp = "Programada",
+                read = false
+            )
+        }
+
+        val workoutsThisWeek = getWorkoutHistory(userId).take(7).sumOf { it.durationMinutes }
+        notifications += AppNotification(
+            id = "workout-reminder",
+            title = "Registrar entrenamiento",
+            description = "Llevas ${workoutsThisWeek} min esta semana. ¡Sigue así!",
+            timestamp = "Resumen",
+            read = workoutsThisWeek >= 180
+        )
+
+        return notifications
     }
 
     private fun currentDateIso(): String =
