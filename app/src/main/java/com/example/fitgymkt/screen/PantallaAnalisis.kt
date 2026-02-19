@@ -33,6 +33,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,7 +42,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,7 +50,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,12 +62,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.fitgymkt.model.ui.AnalysisData
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.NumberPicker
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +87,8 @@ fun PantallaAnalisis(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var refreshKey by remember { mutableIntStateOf(0) }
-    var minutosEntrenamiento by remember { mutableStateOf("") }
+    var horasEntrenamiento by remember { mutableIntStateOf(0) }
+    var minutosEntrenamiento by remember { mutableIntStateOf(30) }
 
     val analysisData by produceState<AnalysisData?>(initialValue = null, userId, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAnalysisData(userId) }
@@ -185,31 +187,52 @@ fun PantallaAnalisis(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("Registrar entrenamiento", fontWeight = FontWeight.Bold)
-                    Text("Añade minutos para mejorar tu análisis", color = Color.Gray, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = minutosEntrenamiento,
-                            onValueChange = { minutosEntrenamiento = it.filter(Char::isDigit) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            label = { Text("Minutos") }
+                    Text("Selecciona horas y minutos", color = Color.Gray, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SelectorTiempo(
+                            titulo = "Horas",
+                            value = horasEntrenamiento,
+                            range = 0..8,
+                            onValueChange = { horasEntrenamiento = it }
                         )
-                        IconButton(onClick = {
-                            val minutes = minutosEntrenamiento.toIntOrNull() ?: 0
+                        SelectorTiempo(
+                            titulo = "Min",
+                            value = minutosEntrenamiento,
+                            range = 0..59,
+                            formatter = { String.format(Locale.getDefault(), "%02d", it) },
+                            onValueChange = { minutosEntrenamiento = it }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            val minutes = (horasEntrenamiento * 60) + minutosEntrenamiento
                             scope.launch {
                                 when (val result = withContext(Dispatchers.IO) { repository.registerWorkout(userId, minutes) }) {
                                     is ActionResult.Success -> {
                                         snackbarHostState.showSnackbar(result.message)
-                                        minutosEntrenamiento = ""
+                                        horasEntrenamiento = 0
+                                        minutosEntrenamiento = 30
                                         refreshKey++
                                     }
                                     is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
                                 }
                             }
-                        }) {
-                            Icon(Icons.Default.Bolt, null)
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.Bolt, null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Registrar ${(horasEntrenamiento * 60) + minutosEntrenamiento} min")
                     }
                 }
             }
@@ -330,5 +353,37 @@ fun PantallaAnalisis(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SelectorTiempo(
+    titulo: String,
+    value: Int,
+    range: IntRange,
+    formatter: (Int) -> String = { it.toString() },
+    onValueChange: (Int) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(titulo, fontSize = 12.sp, color = Color.Gray)
+        AndroidView(
+            factory = { context ->
+                NumberPicker(context).apply {
+                    minValue = range.first
+                    maxValue = range.last
+                    wrapSelectorWheel = true
+                    descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                    setOnValueChangedListener { _, _, newVal -> onValueChange(newVal) }
+                }
+            },
+            update = { picker ->
+                picker.displayedValues = null
+                picker.minValue = range.first
+                picker.maxValue = range.last
+                picker.displayedValues = range.map(formatter).toTypedArray()
+                if (picker.value != value) picker.value = value
+            },
+            modifier = Modifier.size(width = 110.dp, height = 130.dp)
+        )
     }
 }

@@ -160,6 +160,7 @@ class FitGymRepository(context: Context) {
             """
             SELECT
                 u.nombre || ' ' || u.apellidos AS full_name,
+                COALESCE(u.fotoPerfil, ''),
                 u.email,
                 COALESCE(t.telefono, ''),
                 COALESCE(c.edad, 0),
@@ -180,6 +181,7 @@ class FitGymRepository(context: Context) {
             if (!cursor.moveToFirst()) {
                 return@use ProfileData(
                     fullName = "Usuario",
+                    profilePhoto = "",
                     email = "",
                     phone = "",
                     age = 0,
@@ -192,14 +194,55 @@ class FitGymRepository(context: Context) {
 
             ProfileData(
                 fullName = cursor.getString(0),
-                email = cursor.getString(1),
-                phone = cursor.getString(2),
-                age = cursor.getInt(3),
-                weightKg = cursor.getDouble(4),
-                heightCm = cursor.getDouble(5),
-                notificationsEnabled = cursor.getInt(6) == 1,
-                language = cursor.getString(7)
+                profilePhoto = cursor.getString(1),
+                email = cursor.getString(2),
+                phone = cursor.getString(3),
+                age = cursor.getInt(4),
+                weightKg = cursor.getDouble(5),
+                heightCm = cursor.getDouble(6),
+                notificationsEnabled = cursor.getInt(7) == 1,
+                language = cursor.getString(8)
             )
+        }
+    }
+
+    fun updatePassword(userId: Int, currentPassword: String, newPassword: String): ActionResult {
+        if (currentPassword.isBlank() || newPassword.isBlank()) {
+            return ActionResult.Error("Completa ambos campos de contraseña")
+        }
+        if (newPassword.length < 6) {
+            return ActionResult.Error("La nueva contraseña debe tener al menos 6 caracteres")
+        }
+
+        val db = dbHelper.writableDatabase
+        return try {
+            db.beginTransaction()
+
+            val storedPassword = db.rawQuery(
+                "SELECT contraseña FROM usuario WHERE id_usuario = ? LIMIT 1",
+                arrayOf(userId.toString())
+            ).use { cursor ->
+                if (!cursor.moveToFirst()) return ActionResult.Error("Usuario no encontrado")
+                cursor.getString(0)
+            }
+
+            if (storedPassword != currentPassword) {
+                return ActionResult.Error("La contraseña actual no es correcta")
+            }
+
+            db.update(
+                "usuario",
+                ContentValues().apply { put("contraseña", newPassword) },
+                "id_usuario = ?",
+                arrayOf(userId.toString())
+            )
+
+            db.setTransactionSuccessful()
+            ActionResult.Success("Contraseña actualizada correctamente")
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudo actualizar la contraseña")
+        } finally {
+            if (db.inTransaction()) db.endTransaction()
         }
     }
 
