@@ -83,14 +83,10 @@
     <string name="subscription">Suscripción</string>
     <string name="subscription_expires">Vence: %1$s</string>
     <string name="no_active_subscription">Sin suscripción activa</string>
-    <string name="subscription_plan_status">Plan %1$s
-Estado: %2$s
-Vence: %3$s</string>
+    <string name="subscription_plan_status">Plan %1$s\nEstado: %2$s\nVence: %3$s</string>
     <string name="contact_support">Contacto y soporte</string>
-    <string name="contact_support_body">FitGym
-Tel: +34 900 123 456
-Email: soporte@fitgym.com
-Horario: Lun-Vie 07:00 a 22:00</string>
+    <string name="contact_support_body">FitGym\nTel: +34 900 123 456\nEmail: soporte@fitgym.com\nHorario: Lun-Vie 07:00 a 22:00</string>
+
 
     <string name="history_title">Mi historial</string>
     <string name="reservations">Reservas</string>
@@ -113,7 +109,7 @@ Horario: Lun-Vie 07:00 a 22:00</string>
     <string name="analysis_training_time">Tiempo de entrenamiento</string>
     <string name="analysis_in_gym_this_week">en el gimnasio esta semana</string>
     <string name="analysis_completed_percent">%1$d%% completado</string>
-    <string name="analysis_remaining_hours">%.1fh restantes</string>
+    <string name="analysis_remaining_hours">%1$.1fh restantes</string>
     <string name="analysis_weekly_activity">Actividad semanal</string>
     <string name="analysis_last_7_days">Últimos 7 días</string>
     <string name="analysis_total">Total</string>
@@ -132,9 +128,9 @@ Horario: Lun-Vie 07:00 a 22:00</string>
     <string name="profile_age_value">%1$d años</string>
     <string name="profile_body_measurements">Medidas corporales</string>
     <string name="profile_weight">Peso</string>
-    <string name="profile_weight_value">%.1f kg</string>
+    <string name="profile_weight_value">%1$.1f kg</string>
     <string name="profile_height">Altura</string>
-    <string name="profile_height_value">%.0f cm</string>
+    <string name="profile_height_value">%1$.0f cm</string>
     <string name="profile_settings">Configuración</string>
     <string name="profile_app_theme">Tema de la aplicación</string>
     <string name="profile_realtime_alerts">Alertas en tiempo real</string>

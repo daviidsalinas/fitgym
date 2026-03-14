@@ -87,14 +87,9 @@
     <string name="subscription">Abonnement</string>
     <string name="subscription_expires">Läuft ab: %1$s</string>
     <string name="no_active_subscription">Kein aktives Abonnement</string>
-    <string name="subscription_plan_status">Plan %1$s
-Status: %2$s
-Läuft ab: %3$s</string>
+    <string name="subscription_plan_status">Plan %1$s\nStatus: %2$s\nLäuft ab: %3$s</string>
     <string name="contact_support">Kontakt und Support</string>
-    <string name="contact_support_body">FitGym
-Tel: +34 900 123 456
-E-Mail: support@fitgym.com
-Zeiten: Mo-Fr 07:00 bis 22:00</string>
+    <string name="contact_support_body">FitGym\nTel: +34 900 123 456\nE-Mail: support@fitgym.com\nZeiten: Mo-Fr 07:00 bis 22:00</string>
     <string name="no_items_yet">Noch keine Einträge</string>
     <string name="status_value">Status: %1$s</string>
     <string name="no_workouts_registered">Keine Trainings registriert</string>
@@ -103,7 +98,7 @@ Zeiten: Mo-Fr 07:00 bis 22:00</string>
     <string name="analysis_training_time">Trainingszeit</string>
     <string name="analysis_in_gym_this_week">im Fitnessstudio diese Woche</string>
     <string name="analysis_completed_percent">%1$d%% abgeschlossen</string>
-    <string name="analysis_remaining_hours">%.1fh verbleibend</string>
+    <string name="analysis_remaining_hours">%1$.1fh verbleibend</string>
     <string name="analysis_weekly_activity">Wöchentliche Aktivität</string>
     <string name="analysis_last_7_days">Letzte 7 Tage</string>
     <string name="analysis_total">Gesamt</string>
@@ -122,9 +117,9 @@ Zeiten: Mo-Fr 07:00 bis 22:00</string>
     <string name="profile_age_value">%1$d Jahre</string>
     <string name="profile_body_measurements">Körpermaße</string>
     <string name="profile_weight">Gewicht</string>
-    <string name="profile_weight_value">%.1f kg</string>
+    <string name="profile_weight_value">%1$.1f kg</string>
     <string name="profile_height">Größe</string>
-    <string name="profile_height_value">%.0f cm</string>
+    <string name="profile_height_value">%1$.0f cm</string>
     <string name="profile_settings">Einstellungen</string>
     <string name="profile_app_theme">App-Design</string>
     <string name="profile_realtime_alerts">Echtzeit-Benachrichtigungen</string>

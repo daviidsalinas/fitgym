@@ -16,7 +16,9 @@
     <string name="hide_password">Masquer le mot de passe</string>
     <string name="show_password">Afficher le mot de passe</string>
     <string name="forgot_password">Mot de passe oublié ?</string>
-    <string name="no_account">Vous n'avez pas de compte ?</string>
+
+    <string name="no_account">Vous n&apos;avez pas de compte ?</string>
+
     <string name="register_here">Inscrivez-vous ici</string>
     <string name="register_new_account">Créer un nouveau compte</string>
     <string name="register_subtitle">Complétez vos informations pour commencer</string>
@@ -27,20 +29,28 @@
     <string name="register_terms">En vous inscrivant, vous acceptez nos Conditions et notre Politique de confidentialité</string>
     <string name="passwords_do_not_match">Les mots de passe ne correspondent pas</string>
     <string name="account_created">Compte créé avec succès</string>
+
     <string name="home_greeting">Bonjour, %1$s !</string>
-    <string name="home_motivation">Aujourd'hui est une bonne journée pour s'entraîner</string>
+
+    <string name="home_motivation">Aujourd&apos;hui est une bonne journée pour s&apos;entraîner</string>
+
     <string name="book_class">Réserver un cours</string>
     <string name="see_classes">Voir les cours</string>
     <string name="gym_music">Musique du gym</string>
     <string name="open_spotify">Ouvrir Spotify</string>
     <string name="my_progress">Ma progression</string>
-    <string name="go_to_analysis">Aller à l'analyse</string>
+
+    <string name="go_to_analysis">Aller à l&apos;analyse</string>
+
     <string name="my_history">Mon historique</string>
     <string name="my_reservations">Mes réservations</string>
     <string name="next_class">Prochain cours</string>
-    <string name="no_upcoming_classes">Vous n'avez pas de cours à venir</string>
-    <string name="register_training">Enregistrer l'entraînement</string>
+
+    <string name="no_upcoming_classes">Vous n&apos;avez pas de cours à venir</string>
+
+    <string name="register_training">Enregistrer l&apos;entraînement</string>
     <string name="register_training_hint">Disponible dans Accueil et Analyse</string>
+
     <string name="hours">Heures</string>
     <string name="minutes_short">Min</string>
     <string name="register_minutes">Enregistrer %1$d min</string>
@@ -48,6 +58,7 @@
     <string name="reserve_spot">Réservez votre place</string>
     <string name="no_classes_for_filter">Aucun cours pour le filtre sélectionné</string>
     <string name="few_spots">Peu de places !</string>
+
     <string name="all_days">Tous</string>
     <string name="monday">Lundi</string>
     <string name="tuesday">Mardi</string>
@@ -56,59 +67,67 @@
     <string name="friday">Vendredi</string>
     <string name="saturday">Samedi</string>
     <string name="sunday">Dimanche</string>
+
     <string name="analysis_title">Analyse</string>
     <string name="analysis_subtitle">Votre progression quotidienne</string>
     <string name="current_streak">Série actuelle</string>
     <string name="consecutive_days">jours consécutifs</string>
     <string name="consistency_message">Incroyable ! Votre régularité porte ses fruits</string>
     <string name="select_hours_minutes">Sélectionnez les heures et les minutes</string>
+
     <string name="profile_title">Mon profil</string>
     <string name="manage_account">Gérez votre compte</string>
     <string name="dark_mode">Mode sombre</string>
     <string name="notifications">Notifications</string>
     <string name="language">Langue</string>
     <string name="logout">Se déconnecter</string>
+
     <string name="history_title">Mon historique</string>
     <string name="reservations">Réservations</string>
     <string name="attended_classes">Cours suivis</string>
     <string name="workouts">Entraînements</string>
+
     <string name="class_details">Détails du cours</string>
     <string name="day_and_time">Jour et heure</string>
     <string name="instructor">Instructeur</string>
     <string name="location">Emplacement</string>
     <string name="availability">Disponibilité</string>
     <string name="what_you_need">Ce dont vous avez besoin</string>
-    <string name="cancellation_policy">Politique d'annulation</string>
+
+    <string name="cancellation_policy">Politique d&apos;annulation</string>
+
     <string name="book_spot">Réserver une place</string>
     <string name="menu">Menu</string>
     <string name="close">Fermer</string>
+
     <string name="unread_count">%1$d non lues</string>
     <string name="mark_all_as_read">Tout marquer comme lu</string>
+
     <string name="subscription">Abonnement</string>
     <string name="subscription_expires">Expire: %1$s</string>
     <string name="no_active_subscription">Aucun abonnement actif</string>
-    <string name="subscription_plan_status">Forfait %1$s
-Statut: %2$s
-Expire: %3$s</string>
+
+    <string name="subscription_plan_status">Forfait %1$s\nStatut: %2$s\nExpire: %3$s</string>
+
     <string name="contact_support">Contact et assistance</string>
-    <string name="contact_support_body">FitGym
-Tél: +34 900 123 456
-Email: support@fitgym.com
-Horaires: Lun-Ven 07:00 à 22:00</string>
+    <string name="contact_support_body">FitGym\nTél: +34 900 123 456\nEmail: support@fitgym.com\nHoraires: Lun-Ven 07:00 à 22:00</string>
+
     <string name="no_items_yet">Aucun élément pour le moment</string>
     <string name="status_value">Statut: %1$s</string>
     <string name="no_workouts_registered">Aucun entraînement enregistré</string>
     <string name="duration_minutes">Durée: %1$d min</string>
+
     <string name="analysis_weekly_goal">Objectif hebdomadaire</string>
     <string name="analysis_training_time">Temps d’entraînement</string>
     <string name="analysis_in_gym_this_week">à la salle cette semaine</string>
     <string name="analysis_completed_percent">%1$d%% terminé</string>
-    <string name="analysis_remaining_hours">%.1fh restantes</string>
+    <string name="analysis_remaining_hours">%1$.1fh restantes</string>
     <string name="analysis_weekly_activity">Activité hebdomadaire</string>
     <string name="analysis_last_7_days">7 derniers jours</string>
     <string name="analysis_total">Total</string>
     <string name="analysis_daily_average">Moyenne quotidienne</string>
     <string name="analysis_minutes_value">%1$d min</string>
+
     <string name="mon_short">L</string>
     <string name="tue_short">M</string>
     <string name="wed_short">M</string>
@@ -116,28 +135,34 @@ Horaires: Lun-Ven 07:00 à 22:00</string>
     <string name="fri_short">V</string>
     <string name="sat_short">S</string>
     <string name="sun_short">D</string>
+
     <string name="profile_personal_info">Informations personnelles</string>
     <string name="profile_no_phone">Sans téléphone</string>
     <string name="profile_age">Âge</string>
     <string name="profile_age_value">%1$d ans</string>
+
     <string name="profile_body_measurements">Mensurations</string>
     <string name="profile_weight">Poids</string>
-    <string name="profile_weight_value">%.1f kg</string>
+    <string name="profile_weight_value">%1$.1f kg</string>
     <string name="profile_height">Taille</string>
-    <string name="profile_height_value">%.0f cm</string>
+    <string name="profile_height_value">%1$.0f cm</string>
+
     <string name="profile_settings">Paramètres</string>
     <string name="profile_app_theme">Thème de l’application</string>
     <string name="profile_realtime_alerts">Alertes en temps réel</string>
     <string name="profile_language_spanish">Espagnol</string>
+
     <string name="profile_security">Sécurité</string>
     <string name="profile_change_credentials">Modifier les identifiants</string>
     <string name="profile_view_info">Voir les informations</string>
     <string name="profile_photo_desc">Photo de profil</string>
+
     <string name="profile_edit_email">Modifier l’email</string>
     <string name="profile_edit_phone">Modifier le téléphone</string>
     <string name="profile_edit_age">Modifier l’âge</string>
     <string name="profile_edit_weight">Modifier le poids (kg)</string>
     <string name="profile_edit_height">Modifier la taille (cm)</string>
+
     <string name="save">Enregistrer</string>
     <string name="cancel">Annuler</string>
     <string name="update">Mettre à jour</string>
@@ -145,12 +170,16 @@ Horaires: Lun-Ven 07:00 à 22:00</string>
     <string name="current_password">Mot de passe actuel</string>
     <string name="new_password">Nouveau mot de passe</string>
     <string name="understood">Compris</string>
+
     <string name="data_control">Contrôle des données</string>
     <string name="data_control_body">Vous pouvez demander l’exportation ou la suppression de vos données via le support. Vos métriques servent uniquement à afficher votre progression et des recommandations dans l’application.</string>
+
     <string name="detail_availability_value">%1$d sur %2$d places</string>
+
     <string name="requirement_clothes">Tenue de sport confortable</string>
     <string name="requirement_water">Bouteille d’eau</string>
     <string name="requirement_towel">Serviette personnelle</string>
     <string name="requirement_arrive_early">Arriver 10 minutes avant</string>
+
     <string name="cancellation_policy_body">Vous pouvez annuler votre réservation jusqu’à 2 heures avant le début du cours sans pénalité.</string>
 </resources>

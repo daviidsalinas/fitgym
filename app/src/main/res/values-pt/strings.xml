@@ -87,14 +87,9 @@
     <string name="subscription">Assinatura</string>
     <string name="subscription_expires">Vence: %1$s</string>
     <string name="no_active_subscription">Sem assinatura ativa</string>
-    <string name="subscription_plan_status">Plano %1$s
-Status: %2$s
-Vence: %3$s</string>
+    <string name="subscription_plan_status">Plano %1$s\nStatus: %2$s\nVence: %3$s</string>
     <string name="contact_support">Contato e suporte</string>
-    <string name="contact_support_body">FitGym
-Tel: +34 900 123 456
-Email: suporte@fitgym.com
-Horário: Seg-Sex 07:00 a 22:00</string>
+    <string name="contact_support_body">FitGym\nTel: +34 900 123 456\nEmail: suporte@fitgym.com\nHorário: Seg-Sex 07:00 a 22:00</string>
     <string name="no_items_yet">Sem itens ainda</string>
     <string name="status_value">Status: %1$s</string>
     <string name="no_workouts_registered">Nenhum treino registrado</string>
@@ -103,7 +98,7 @@ Horário: Seg-Sex 07:00 a 22:00</string>
     <string name="analysis_training_time">Tempo de treino</string>
     <string name="analysis_in_gym_this_week">na academia esta semana</string>
     <string name="analysis_completed_percent">%1$d%% concluído</string>
-    <string name="analysis_remaining_hours">%.1fh restantes</string>
+    <string name="analysis_remaining_hours">%1$.1fh restantes</string>
     <string name="analysis_weekly_activity">Atividade semanal</string>
     <string name="analysis_last_7_days">Últimos 7 dias</string>
     <string name="analysis_total">Total</string>
@@ -122,9 +117,9 @@ Horário: Seg-Sex 07:00 a 22:00</string>
     <string name="profile_age_value">%1$d anos</string>
     <string name="profile_body_measurements">Medidas corporais</string>
     <string name="profile_weight">Peso</string>
-    <string name="profile_weight_value">%.1f kg</string>
+    <string name="profile_weight_value">%1$.1f kg</string>
     <string name="profile_height">Altura</string>
-    <string name="profile_height_value">%.0f cm</string>
+    <string name="profile_height_value">%1$.0f cm</string>
     <string name="profile_settings">Configurações</string>
     <string name="profile_app_theme">Tema do app</string>
     <string name="profile_realtime_alerts">Alertas em tempo real</string>
