@@ -58,10 +58,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.model.ui.ReservationDetailData
+import com.example.fitgymkt.R
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
@@ -111,10 +113,10 @@ fun PantallaDetalleReserva(
         },
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
-                NavigationBarItem(selected = true, onClick = alVolverAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
-                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
-                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
+                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
+                NavigationBarItem(selected = true, onClick = alVolverAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
+                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
+                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
             }
         }
     ) { padding ->
@@ -150,12 +152,12 @@ fun PantallaDetalleReserva(
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    Text("Detalles de la Clase", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.class_details), fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
-                    ItemDetalle(Icons.Default.CalendarMonth, "Día y Hora", "${detail.date}\n${detail.startTime}")
-                    ItemDetalle(Icons.Default.Person, "Instructor", detail.instructorName)
-                    ItemDetalle(Icons.Default.LocationOn, "Ubicación", detail.roomName)
-                    ItemDetalle(Icons.Default.Groups, "Disponibilidad", "${detail.occupiedSlots} de ${detail.totalSlots} plazas")
+                    ItemDetalle(Icons.Default.CalendarMonth, stringResource(R.string.day_and_time), "${detail.date}\n${detail.startTime}")
+                    ItemDetalle(Icons.Default.Person, stringResource(R.string.instructor), detail.instructorName)
+                    ItemDetalle(Icons.Default.LocationOn, stringResource(R.string.location), detail.roomName)
+                    ItemDetalle(Icons.Default.Groups, stringResource(R.string.availability), stringResource(R.string.detail_availability_value, detail.occupiedSlots, detail.totalSlots))
                 }
             }
 
@@ -166,11 +168,11 @@ fun PantallaDetalleReserva(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA))
             ) {
                 Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Qué Necesitas", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    FilaRequisito("Ropa deportiva cómoda")
-                    FilaRequisito("Botella de agua")
-                    FilaRequisito("Toalla personal")
-                    FilaRequisito("Llegar 10 minutos antes")
+                    Text(stringResource(R.string.what_you_need), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    FilaRequisito(stringResource(R.string.requirement_clothes))
+                    FilaRequisito(stringResource(R.string.requirement_water))
+                    FilaRequisito(stringResource(R.string.requirement_towel))
+                    FilaRequisito(stringResource(R.string.requirement_arrive_early))
                 }
             }
 
@@ -181,10 +183,10 @@ fun PantallaDetalleReserva(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Política de Cancelación", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancellation_policy), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Puedes cancelar tu reserva hasta 2 horas antes del inicio de la clase sin penalización.",
+                        stringResource(R.string.cancellation_policy_body),
                         fontSize = 14.sp,
                         color = Color.DarkGray
                     )
@@ -211,7 +213,7 @@ fun PantallaDetalleReserva(
                 if (reservando) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Text("Reservar Plaza", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.book_spot), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

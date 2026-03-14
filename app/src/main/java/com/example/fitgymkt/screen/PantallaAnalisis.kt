@@ -59,10 +59,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.fitgymkt.R
 import com.example.fitgymkt.model.ui.AnalysisData
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
@@ -116,10 +118,10 @@ fun PantallaAnalisis(
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
-                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
-                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
-                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
+                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
+                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
+                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
+                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
             }
         }
     ) { padding ->
@@ -144,8 +146,8 @@ fun PantallaAnalisis(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Análisis", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            Text("Tu progreso diario", color = Color.Gray, fontSize = 14.sp)
+            Text(stringResource(R.string.analysis_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(stringResource(R.string.analysis_subtitle), color = Color.Gray, fontSize = 14.sp)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -164,16 +166,16 @@ fun PantallaAnalisis(
                             Icon(Icons.Default.Whatshot, null, tint = Color.White)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Racha Actual", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.current_streak), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.weight(1f))
                         Icon(Icons.Default.Bolt, null, tint = Color(0xFFFF9800))
                     }
 
                     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(vertical = 12.dp)) {
                         Text(data.streakDays.toString(), color = Color(0xFFFF9800), fontSize = 60.sp, fontWeight = FontWeight.Bold)
-                        Text(" días consecutivos", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
+                        Text(" ${stringResource(R.string.consecutive_days)}", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
                     }
-                    Text("¡Increíble! Tu constancia está dando frutos", color = Color.Gray, fontSize = 12.sp)
+                    Text(stringResource(R.string.consistency_message), color = Color.Gray, fontSize = 12.sp)
                 }
             }
 
@@ -186,8 +188,8 @@ fun PantallaAnalisis(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Registrar entrenamiento", fontWeight = FontWeight.Bold)
-                    Text("Selecciona horas y minutos", color = Color.Gray, fontSize = 12.sp)
+                    Text(stringResource(R.string.register_training), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.select_hours_minutes), color = Color.Gray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
@@ -196,13 +198,13 @@ fun PantallaAnalisis(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         SelectorTiempo(
-                            titulo = "Horas",
+                            titulo = stringResource(R.string.hours),
                             value = horasEntrenamiento,
                             range = 0..8,
                             onValueChange = { horasEntrenamiento = it }
                         )
                         SelectorTiempo(
-                            titulo = "Min",
+                            titulo = stringResource(R.string.minutes_short),
                             value = minutosEntrenamiento,
                             range = 0..59,
                             formatter = { String.format(Locale.getDefault(), "%02d", it) },
@@ -232,7 +234,7 @@ fun PantallaAnalisis(
                     ) {
                         Icon(Icons.Default.Bolt, null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Registrar ${(horasEntrenamiento * 60) + minutosEntrenamiento} min")
+                        Text(stringResource(R.string.register_minutes, (horasEntrenamiento * 60) + minutosEntrenamiento))
                     }
                 }
             }
@@ -252,8 +254,8 @@ fun PantallaAnalisis(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("Meta Semanal", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Tiempo de entrenamiento", color = Color.Gray, fontSize = 12.sp)
+                            Text(stringResource(R.string.analysis_weekly_goal), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.analysis_training_time), color = Color.Gray, fontSize = 12.sp)
                         }
                     }
 
@@ -264,8 +266,7 @@ fun PantallaAnalisis(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text("en el gimnasio esta semana", color = Color.Gray, fontSize = 14.sp)
-                    }
+                        Text(stringResource(R.string.analysis_in_gym_this_week), color = Color.Gray, fontSize = 14.sp)                    }
 
                     LinearProgressIndicator(
                         progress = { progress },
@@ -275,9 +276,9 @@ fun PantallaAnalisis(
                     )
 
                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Text("${(progress * 100).toInt()}% completado", fontSize = 12.sp, color = Color.Gray)
+                        Text(stringResource(R.string.analysis_in_gym_this_week), color = Color.Gray, fontSize = 14.sp)
                         Spacer(modifier = Modifier.weight(1f))
-                        Text(String.format(Locale.getDefault(), "%.1fh restantes", remainingHours), fontSize = 12.sp, color = Color.Gray)
+                        Text(stringResource(R.string.analysis_remaining_hours, remainingHours), fontSize = 12.sp, color = Color.Gray)
                     }
                 }
             }
@@ -298,8 +299,8 @@ fun PantallaAnalisis(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("Actividad Semanal", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Últimos 7 días", color = Color.Gray, fontSize = 12.sp)
+                            Text(stringResource(R.string.analysis_weekly_activity), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(stringResource(R.string.analysis_last_7_days), color = Color.Gray, fontSize = 12.sp)
                         }
                     }
 
@@ -314,7 +315,15 @@ fun PantallaAnalisis(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         val maxValue = (data.weeklyActivityHours.maxOrNull() ?: 0.0).coerceAtLeast(0.1)
-                        val dias = listOf("L", "M", "X", "J", "V", "S", "D")
+                        val dias = listOf(
+                            stringResource(R.string.mon_short),
+                            stringResource(R.string.tue_short),
+                            stringResource(R.string.wed_short),
+                            stringResource(R.string.thu_short),
+                            stringResource(R.string.fri_short),
+                            stringResource(R.string.sat_short),
+                            stringResource(R.string.sun_short)
+                        )
 
                         data.weeklyActivityHours.forEachIndexed { index, dailyHours ->
                             val altura = (dailyHours / maxValue).toFloat().coerceIn(0.1f, 1f)
@@ -339,14 +348,14 @@ fun PantallaAnalisis(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(modifier = Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(16.dp)) {
                             Column {
-                                Text("Total", fontSize = 12.sp, color = Color.Gray)
+                                Text(stringResource(R.string.analysis_total), fontSize = 12.sp, color = Color.Gray)
                                 Text(String.format(Locale.getDefault(), "%.1f h", totalWeeklyHours), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         Box(modifier = Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(16.dp)) {
                             Column {
-                                Text("Promedio Diario", fontSize = 12.sp, color = Color.Gray)
-                                Text("$avgMinutes min", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.analysis_daily_average), fontSize = 12.sp, color = Color.Gray)
+                                Text(stringResource(R.string.analysis_minutes_value, avgMinutes), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }

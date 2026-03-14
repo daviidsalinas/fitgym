@@ -76,9 +76,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.model.ui.ProfileData
+import com.example.fitgymkt.R
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
@@ -149,10 +151,10 @@ fun PantallaPerfil(
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
-                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
-                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
-                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
+                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
+                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
+                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
+                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
             }
         }
     ) { padding ->
@@ -230,8 +232,8 @@ fun PantallaPerfil(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Mi Perfil", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            Text("Gestiona tu cuenta", color = Color.Gray, fontSize = 14.sp)
+            Text(stringResource(R.string.profile_title), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(stringResource(R.string.manage_account), color = Color.Gray, fontSize = 14.sp)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -251,43 +253,41 @@ fun PantallaPerfil(
             Spacer(modifier = Modifier.height(24.dp))
 
             //Información Personal
-            SeccionPerfil("Información Personal") {
-                ItemPerfil(Icons.Default.Email, "Email", data.email) { campoEnEdicion = PerfilCampoEditable.Email }
+            SeccionPerfil(stringResource(R.string.profile_personal_info)) {
+                ItemPerfil(Icons.Default.Email, stringResource(R.string.email), data.email) { campoEnEdicion = PerfilCampoEditable.Email }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                ItemPerfil(Icons.Default.Phone, "Teléfono", if (data.phone.isBlank()) "Sin teléfono" else data.phone) { campoEnEdicion = PerfilCampoEditable.Telefono }
+                ItemPerfil(Icons.Default.Phone, stringResource(R.string.phone), if (data.phone.isBlank()) stringResource(R.string.profile_no_phone) else data.phone) { campoEnEdicion = PerfilCampoEditable.Telefono }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                ItemPerfil(Icons.Default.CalendarToday, "Edad", "${data.age} años") { campoEnEdicion = PerfilCampoEditable.Edad }
+                ItemPerfil(Icons.Default.CalendarToday, stringResource(R.string.profile_age), stringResource(R.string.profile_age_value, data.age)) { campoEnEdicion = PerfilCampoEditable.Edad }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // 3. Medidas Corporales
-            SeccionPerfil("Medidas Corporales") {
-                ItemPerfil(Icons.Default.Scale, "Peso", String.format(Locale.getDefault(), "%.1f kg", data.weightKg)) { campoEnEdicion = PerfilCampoEditable.Peso }
+            SeccionPerfil(stringResource(R.string.profile_body_measurements)) {
+                ItemPerfil(Icons.Default.Scale, stringResource(R.string.profile_weight), String.format(Locale.getDefault(), stringResource(R.string.profile_weight_value), data.weightKg)) { campoEnEdicion = PerfilCampoEditable.Peso }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                ItemPerfil(Icons.Default.Straighten, "Altura", String.format(Locale.getDefault(), "%.0f cm", data.heightCm)) { campoEnEdicion = PerfilCampoEditable.Altura }
-            }
+                ItemPerfil(Icons.Default.Straighten, stringResource(R.string.profile_height), String.format(Locale.getDefault(), stringResource(R.string.profile_height_value), data.heightCm)) { campoEnEdicion = PerfilCampoEditable.Altura }            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // 4. Configuración (Switch de Modo Oscuro)
-            SeccionPerfil("Configuración") {
-                ItemConfiguracion(Icons.Default.LightMode, "Modo Oscuro", "Tema de la aplicación") {
+            SeccionPerfil(stringResource(R.string.profile_settings)) {
+                ItemConfiguracion(Icons.Default.LightMode, stringResource(R.string.dark_mode), stringResource(R.string.profile_app_theme)) {
                     Switch(checked = modoOscuroActivado, onCheckedChange = onModoOscuroChanged)
                 }
-                ItemConfiguracion(Icons.Default.Notifications, "Notificaciones", "Alertas en tiempo real") {
+                ItemConfiguracion(Icons.Default.Notifications, stringResource(R.string.notifications), stringResource(R.string.profile_realtime_alerts)) {
                     Switch(checked = notificacionesInternas, onCheckedChange = { notificacionesInternas = it })
                 }
-                ItemPerfil(Icons.Default.Language, "Idioma", if (data.language == "ES") "Español" else data.language, mostrarFlecha = false)
-            }
+                ItemPerfil(Icons.Default.Language, stringResource(R.string.language), if (data.language == "ES") stringResource(R.string.profile_language_spanish) else data.language, mostrarFlecha = false)            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // 5. Seguridad
-            SeccionPerfil("Seguridad") {
-                ItemPerfil(Icons.Default.Lock, "Actualizar contraseña", "Cambiar credenciales") { campoEnEdicion = PerfilCampoEditable.Password }
+            SeccionPerfil(stringResource(R.string.profile_security)) {
+                ItemPerfil(Icons.Default.Lock, stringResource(R.string.update_password), stringResource(R.string.profile_change_credentials)) { campoEnEdicion = PerfilCampoEditable.Password }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                ItemPerfil(Icons.Default.Shield, "Control de datos", "Ver información") { campoEnEdicion = PerfilCampoEditable.Privacidad }
+                ItemPerfil(Icons.Default.Shield, stringResource(R.string.data_control), stringResource(R.string.profile_view_info)) { campoEnEdicion = PerfilCampoEditable.Privacidad }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -301,7 +301,7 @@ fun PantallaPerfil(
             ) {
                 Icon(Icons.Default.Logout, null, tint = Color.White)
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Cerrar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(stringResource(R.string.logout), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -322,7 +322,7 @@ private fun FotoPerfil(profilePhoto: String) {
         if (profilePhoto.isNotBlank() && resourceId != 0) {
             Image(
                 painter = painterResource(id = resourceId),
-                contentDescription = "Foto de perfil",
+                contentDescription = stringResource(R.string.profile_photo_desc),
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -339,11 +339,11 @@ private fun DialogoEditarCampo(
     onGuardar: (String) -> Unit
 ) {
     val (titulo, valorActual, filtro) = when (campo) {
-        PerfilCampoEditable.Email -> Triple("Editar Email", data.email, { s: String -> s })
-        PerfilCampoEditable.Telefono -> Triple("Editar Teléfono", data.phone, { s: String -> s.filter { it.isDigit() || it == '+' || it == ' ' } })
-        PerfilCampoEditable.Edad -> Triple("Editar Edad", data.age.toString(), { s: String -> s.filter(Char::isDigit) })
-        PerfilCampoEditable.Peso -> Triple("Editar Peso (kg)", data.weightKg.toString(), { s: String -> s.filter { it.isDigit() || it == '.' } })
-        PerfilCampoEditable.Altura -> Triple("Editar Altura (cm)", data.heightCm.toString(), { s: String -> s.filter { it.isDigit() || it == '.' } })
+        PerfilCampoEditable.Email -> Triple(stringResource(R.string.profile_edit_email), data.email, { s: String -> s })
+        PerfilCampoEditable.Telefono -> Triple(stringResource(R.string.profile_edit_phone), data.phone, { s: String -> s.filter { it.isDigit() || it == '+' || it == ' ' } })
+        PerfilCampoEditable.Edad -> Triple(stringResource(R.string.profile_edit_age), data.age.toString(), { s: String -> s.filter(Char::isDigit) })
+        PerfilCampoEditable.Peso -> Triple(stringResource(R.string.profile_edit_weight), data.weightKg.toString(), { s: String -> s.filter { it.isDigit() || it == '.' } })
+        PerfilCampoEditable.Altura -> Triple(stringResource(R.string.profile_edit_height), data.heightCm.toString(), { s: String -> s.filter { it.isDigit() || it == '.' } })
         else -> Triple("", "", { s: String -> s })
     }
 
@@ -351,8 +351,8 @@ private fun DialogoEditarCampo(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = { onGuardar(valor.trim()) }) { Text("Guardar") } },
-        dismissButton = { Button(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { Button(onClick = { onGuardar(valor.trim()) }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
         title = { Text(titulo) },
         text = {
             OutlinedTextField(
@@ -375,13 +375,13 @@ private fun DialogoCambiarPassword(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = { onGuardar(actual, nueva) }) { Text("Actualizar") } },
-        dismissButton = { Button(onClick = onDismiss) { Text("Cancelar") } },
-        title = { Text("Actualizar contraseña") },
+        confirmButton = { Button(onClick = { onGuardar(actual, nueva) }) { Text(stringResource(R.string.update)) } },
+        dismissButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        title = { Text(stringResource(R.string.update_password)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = actual, onValueChange = { actual = it }, label = { Text("Contraseña actual") }, singleLine = true)
-                OutlinedTextField(value = nueva, onValueChange = { nueva = it }, label = { Text("Nueva contraseña") }, singleLine = true)
+                OutlinedTextField(value = actual, onValueChange = { actual = it }, label = { Text(stringResource(R.string.current_password)) }, singleLine = true)
+                OutlinedTextField(value = nueva, onValueChange = { nueva = it }, label = { Text(stringResource(R.string.new_password)) }, singleLine = true)
             }
         }
     )
@@ -393,10 +393,10 @@ private fun DialogoCambiarPassword(
 private fun DialogoPrivacidad(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = onDismiss) { Text("Entendido") } },
-        title = { Text("Control de datos") },
+        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.understood)) } },
+        title = { Text(stringResource(R.string.data_control)) },
         text = {
-            Text("Puedes solicitar exportación o eliminación de tus datos desde soporte. Tus métricas se usan solo para mostrar progreso y recomendaciones dentro de la app.")
+            Text(stringResource(R.string.data_control_body))
         }
     )
 }

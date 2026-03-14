@@ -80,4 +80,77 @@
     <string name="what_you_need">Ce dont vous avez besoin</string>
     <string name="cancellation_policy">Politique d'annulation</string>
     <string name="book_spot">Réserver une place</string>
+    <string name="menu">Menu</string>
+    <string name="close">Fermer</string>
+    <string name="unread_count">%1$d non lues</string>
+    <string name="mark_all_as_read">Tout marquer comme lu</string>
+    <string name="subscription">Abonnement</string>
+    <string name="subscription_expires">Expire: %1$s</string>
+    <string name="no_active_subscription">Aucun abonnement actif</string>
+    <string name="subscription_plan_status">Forfait %1$s
+Statut: %2$s
+Expire: %3$s</string>
+    <string name="contact_support">Contact et assistance</string>
+    <string name="contact_support_body">FitGym
+Tél: +34 900 123 456
+Email: support@fitgym.com
+Horaires: Lun-Ven 07:00 à 22:00</string>
+    <string name="no_items_yet">Aucun élément pour le moment</string>
+    <string name="status_value">Statut: %1$s</string>
+    <string name="no_workouts_registered">Aucun entraînement enregistré</string>
+    <string name="duration_minutes">Durée: %1$d min</string>
+    <string name="analysis_weekly_goal">Objectif hebdomadaire</string>
+    <string name="analysis_training_time">Temps d’entraînement</string>
+    <string name="analysis_in_gym_this_week">à la salle cette semaine</string>
+    <string name="analysis_completed_percent">%1$d%% terminé</string>
+    <string name="analysis_remaining_hours">%.1fh restantes</string>
+    <string name="analysis_weekly_activity">Activité hebdomadaire</string>
+    <string name="analysis_last_7_days">7 derniers jours</string>
+    <string name="analysis_total">Total</string>
+    <string name="analysis_daily_average">Moyenne quotidienne</string>
+    <string name="analysis_minutes_value">%1$d min</string>
+    <string name="mon_short">L</string>
+    <string name="tue_short">M</string>
+    <string name="wed_short">M</string>
+    <string name="thu_short">J</string>
+    <string name="fri_short">V</string>
+    <string name="sat_short">S</string>
+    <string name="sun_short">D</string>
+    <string name="profile_personal_info">Informations personnelles</string>
+    <string name="profile_no_phone">Sans téléphone</string>
+    <string name="profile_age">Âge</string>
+    <string name="profile_age_value">%1$d ans</string>
+    <string name="profile_body_measurements">Mensurations</string>
+    <string name="profile_weight">Poids</string>
+    <string name="profile_weight_value">%.1f kg</string>
+    <string name="profile_height">Taille</string>
+    <string name="profile_height_value">%.0f cm</string>
+    <string name="profile_settings">Paramètres</string>
+    <string name="profile_app_theme">Thème de l’application</string>
+    <string name="profile_realtime_alerts">Alertes en temps réel</string>
+    <string name="profile_language_spanish">Espagnol</string>
+    <string name="profile_security">Sécurité</string>
+    <string name="profile_change_credentials">Modifier les identifiants</string>
+    <string name="profile_view_info">Voir les informations</string>
+    <string name="profile_photo_desc">Photo de profil</string>
+    <string name="profile_edit_email">Modifier l’email</string>
+    <string name="profile_edit_phone">Modifier le téléphone</string>
+    <string name="profile_edit_age">Modifier l’âge</string>
+    <string name="profile_edit_weight">Modifier le poids (kg)</string>
+    <string name="profile_edit_height">Modifier la taille (cm)</string>
+    <string name="save">Enregistrer</string>
+    <string name="cancel">Annuler</string>
+    <string name="update">Mettre à jour</string>
+    <string name="update_password">Mettre à jour le mot de passe</string>
+    <string name="current_password">Mot de passe actuel</string>
+    <string name="new_password">Nouveau mot de passe</string>
+    <string name="understood">Compris</string>
+    <string name="data_control">Contrôle des données</string>
+    <string name="data_control_body">Vous pouvez demander l’exportation ou la suppression de vos données via le support. Vos métriques servent uniquement à afficher votre progression et des recommandations dans l’application.</string>
+    <string name="detail_availability_value">%1$d sur %2$d places</string>
+    <string name="requirement_clothes">Tenue de sport confortable</string>
+    <string name="requirement_water">Bouteille d’eau</string>
+    <string name="requirement_towel">Serviette personnelle</string>
+    <string name="requirement_arrive_early">Arriver 10 minutes avant</string>
+    <string name="cancellation_policy_body">Vous pouvez annuler votre réservation jusqu’à 2 heures avant le début du cours sans pénalité.</string>
 </resources>

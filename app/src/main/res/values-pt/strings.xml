@@ -80,4 +80,77 @@
     <string name="what_you_need">O que você precisa</string>
     <string name="cancellation_policy">Política de cancelamento</string>
     <string name="book_spot">Reservar vaga</string>
+    <string name="menu">Menu</string>
+    <string name="close">Fechar</string>
+    <string name="unread_count">%1$d não lidas</string>
+    <string name="mark_all_as_read">Marcar todas como lidas</string>
+    <string name="subscription">Assinatura</string>
+    <string name="subscription_expires">Vence: %1$s</string>
+    <string name="no_active_subscription">Sem assinatura ativa</string>
+    <string name="subscription_plan_status">Plano %1$s
+Status: %2$s
+Vence: %3$s</string>
+    <string name="contact_support">Contato e suporte</string>
+    <string name="contact_support_body">FitGym
+Tel: +34 900 123 456
+Email: suporte@fitgym.com
+Horário: Seg-Sex 07:00 a 22:00</string>
+    <string name="no_items_yet">Sem itens ainda</string>
+    <string name="status_value">Status: %1$s</string>
+    <string name="no_workouts_registered">Nenhum treino registrado</string>
+    <string name="duration_minutes">Duração: %1$d min</string>
+    <string name="analysis_weekly_goal">Meta semanal</string>
+    <string name="analysis_training_time">Tempo de treino</string>
+    <string name="analysis_in_gym_this_week">na academia esta semana</string>
+    <string name="analysis_completed_percent">%1$d%% concluído</string>
+    <string name="analysis_remaining_hours">%.1fh restantes</string>
+    <string name="analysis_weekly_activity">Atividade semanal</string>
+    <string name="analysis_last_7_days">Últimos 7 dias</string>
+    <string name="analysis_total">Total</string>
+    <string name="analysis_daily_average">Média diária</string>
+    <string name="analysis_minutes_value">%1$d min</string>
+    <string name="mon_short">S</string>
+    <string name="tue_short">T</string>
+    <string name="wed_short">Q</string>
+    <string name="thu_short">Q</string>
+    <string name="fri_short">S</string>
+    <string name="sat_short">S</string>
+    <string name="sun_short">D</string>
+    <string name="profile_personal_info">Informações pessoais</string>
+    <string name="profile_no_phone">Sem telefone</string>
+    <string name="profile_age">Idade</string>
+    <string name="profile_age_value">%1$d anos</string>
+    <string name="profile_body_measurements">Medidas corporais</string>
+    <string name="profile_weight">Peso</string>
+    <string name="profile_weight_value">%.1f kg</string>
+    <string name="profile_height">Altura</string>
+    <string name="profile_height_value">%.0f cm</string>
+    <string name="profile_settings">Configurações</string>
+    <string name="profile_app_theme">Tema do app</string>
+    <string name="profile_realtime_alerts">Alertas em tempo real</string>
+    <string name="profile_language_spanish">Espanhol</string>
+    <string name="profile_security">Segurança</string>
+    <string name="profile_change_credentials">Alterar credenciais</string>
+    <string name="profile_view_info">Ver informações</string>
+    <string name="profile_photo_desc">Foto de perfil</string>
+    <string name="profile_edit_email">Editar email</string>
+    <string name="profile_edit_phone">Editar telefone</string>
+    <string name="profile_edit_age">Editar idade</string>
+    <string name="profile_edit_weight">Editar peso (kg)</string>
+    <string name="profile_edit_height">Editar altura (cm)</string>
+    <string name="save">Salvar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="update">Atualizar</string>
+    <string name="update_password">Atualizar senha</string>
+    <string name="current_password">Senha atual</string>
+    <string name="new_password">Nova senha</string>
+    <string name="understood">Entendi</string>
+    <string name="data_control">Controle de dados</string>
+    <string name="data_control_body">Você pode solicitar exportação ou exclusão dos seus dados pelo suporte. Suas métricas são usadas apenas para mostrar progresso e recomendações dentro do app.</string>
+    <string name="detail_availability_value">%1$d de %2$d vagas</string>
+    <string name="requirement_clothes">Roupa esportiva confortável</string>
+    <string name="requirement_water">Garrafa de água</string>
+    <string name="requirement_towel">Toalha pessoal</string>
+    <string name="requirement_arrive_early">Chegar 10 minutos antes</string>
+    <string name="cancellation_policy_body">Você pode cancelar sua reserva até 2 horas antes do início da aula sem penalidade.</string>
 </resources>
