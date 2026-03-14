@@ -1,3 +1,93 @@
 <resources>
     <string name="app_name">FitGYM</string>
+    <string name="guest_user">Invitado</string>
+
+    <string name="nav_home">Inicio</string>
+    <string name="nav_classes">Clases</string>
+    <string name="nav_analysis">Análisis</string>
+    <string name="nav_profile">Perfil</string>
+    <string name="nav_history">Historial</string>
+
+    <string name="logo_fitgym">Logo FitGym</string>
+    <string name="tagline">Tu Entrenamiento, Tu Ritmo</string>
+
+    <string name="login_title">Iniciar sesión</string>
+    <string name="login_subtitle">Accede a tu cuenta</string>
+    <string name="email">Email</string>
+    <string name="password">Contraseña</string>
+    <string name="confirm_password">Confirmar contraseña</string>
+    <string name="hide_password">Ocultar contraseña</string>
+    <string name="show_password">Mostrar contraseña</string>
+    <string name="forgot_password">¿Olvidaste tu contraseña?</string>
+    <string name="no_account">¿No tienes una cuenta?</string>
+    <string name="register_here">Regístrate aquí</string>
+
+    <string name="register_new_account">Crear cuenta nueva</string>
+    <string name="register_subtitle">Completa tus datos para comenzar</string>
+    <string name="back_to_login">Volver al inicio de sesión</string>
+    <string name="full_name">Nombre completo</string>
+    <string name="phone">Teléfono</string>
+    <string name="create_account">Crear cuenta</string>
+    <string name="register_terms">Al registrarte, aceptas nuestros Términos y Privacidad</string>
+    <string name="passwords_do_not_match">Las contraseñas no coinciden</string>
+    <string name="account_created">Cuenta creada correctamente</string>
+
+    <string name="home_greeting">¡Hola, %1$s!</string>
+    <string name="home_motivation">Hoy es un buen día para entrenar</string>
+    <string name="book_class">Reservar clase</string>
+    <string name="see_classes">Ver clases</string>
+    <string name="gym_music">Música del gym</string>
+    <string name="open_spotify">Abrir Spotify</string>
+    <string name="my_progress">Mi progreso</string>
+    <string name="go_to_analysis">Ir a análisis</string>
+    <string name="my_history">Mi historial</string>
+    <string name="my_reservations">Mis reservas</string>
+    <string name="next_class">Siguiente clase</string>
+    <string name="no_upcoming_classes">No tienes clases próximas</string>
+    <string name="register_training">Registrar entrenamiento</string>
+    <string name="register_training_hint">Disponible en Inicio y Análisis</string>
+    <string name="hours">Horas</string>
+    <string name="minutes_short">Min</string>
+    <string name="register_minutes">Registrar %1$d min</string>
+
+    <string name="classes_available">Clases disponibles</string>
+    <string name="reserve_spot">Reserva tu plaza</string>
+    <string name="no_classes_for_filter">No hay clases para el filtro seleccionado</string>
+    <string name="few_spots">¡Pocas plazas!</string>
+    <string name="all_days">Todos</string>
+    <string name="monday">Lunes</string>
+    <string name="tuesday">Martes</string>
+    <string name="wednesday">Miércoles</string>
+    <string name="thursday">Jueves</string>
+    <string name="friday">Viernes</string>
+    <string name="saturday">Sábado</string>
+    <string name="sunday">Domingo</string>
+
+    <string name="analysis_title">Análisis</string>
+    <string name="analysis_subtitle">Tu progreso diario</string>
+    <string name="current_streak">Racha actual</string>
+    <string name="consecutive_days">días consecutivos</string>
+    <string name="consistency_message">¡Increíble! Tu constancia está dando frutos</string>
+    <string name="select_hours_minutes">Selecciona horas y minutos</string>
+
+    <string name="profile_title">Mi perfil</string>
+    <string name="manage_account">Gestiona tu cuenta</string>
+    <string name="dark_mode">Modo oscuro</string>
+    <string name="notifications">Notificaciones</string>
+    <string name="language">Idioma</string>
+    <string name="logout">Cerrar sesión</string>
+
+    <string name="history_title">Mi historial</string>
+    <string name="reservations">Reservas</string>
+    <string name="attended_classes">Clases asistidas</string>
+    <string name="workouts">Entrenamientos</string>
+
+    <string name="class_details">Detalles de la clase</string>
+    <string name="day_and_time">Día y hora</string>
+    <string name="instructor">Instructor</string>
+    <string name="location">Ubicación</string>
+    <string name="availability">Disponibilidad</string>
+    <string name="what_you_need">Qué necesitas</string>
+    <string name="cancellation_policy">Política de cancelación</string>
+    <string name="book_spot">Reservar plaza</string>
 </resources>

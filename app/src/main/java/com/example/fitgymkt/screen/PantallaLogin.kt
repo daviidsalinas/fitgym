@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.repository.LoginResult
+import androidx.compose.ui.res.stringResource
+import com.example.fitgymkt.R
 import com.example.fitgymkt.ui.theme.ColoresFit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,7 +68,7 @@ fun PantallaLogin(
             ){
                 Icon(
                     imageVector = Icons.Default.FitnessCenter,
-                    contentDescription = "Logo FitGym",
+                    contentDescription = stringResource(R.string.logo_fitgym),
                     tint = Color.White,
                     modifier = Modifier.size(36.dp)
                 )
@@ -80,7 +82,8 @@ fun PantallaLogin(
                 withStyle(style = SpanStyle(fontWeight = FontWeight.Light, color = ColoresFit.AzulFit, fontSize = 28.sp)) { append("GYM") }
             })
 
-            Text(text = "Tu Entrenamiento, Tu Ritmo", color = ColoresFit.GrisTexto, fontSize = 12.sp)
+            Text(text = stringResource(R.string.tagline), color = ColoresFit.GrisTexto, fontSize = 12.sp)
+
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -94,15 +97,15 @@ fun PantallaLogin(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Iniciar Sesión", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("Accede a tu cuenta", color = ColoresFit.GrisTexto, fontSize = 14.sp)
+                    Text(stringResource(R.string.login_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.login_subtitle), color = ColoresFit.GrisTexto, fontSize = 14.sp)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     OutlinedTextField(
                         value = correo,
                         onValueChange = { correo = it },
-                        placeholder = { Text("Email") },
+                        placeholder = { Text(stringResource(R.string.email)) },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = ColoresFit.AzulFit) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -121,13 +124,13 @@ fun PantallaLogin(
                     OutlinedTextField(
                         value = contrasena,
                         onValueChange = { contrasena = it },
-                        placeholder = { Text("Contraseña") },
+                        placeholder = { Text(stringResource(R.string.password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = ColoresFit.AzulFit) },
                         trailingIcon = {
                             IconButton(onClick = { mostrarPassword = !mostrarPassword }) {
                                 Icon(
                                     imageVector = if (mostrarPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (mostrarPassword) "Ocultar contraseña" else "Mostrar contraseña"
+                                    contentDescription = if (mostrarPassword) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
                                 )
                             }
                         },
@@ -145,7 +148,7 @@ fun PantallaLogin(
 
 
                     TextButton(onClick = { }) {
-                        Text("¿Olvidaste tu contraseña?", color = ColoresFit.GrisTexto, fontSize = 12.sp)
+                        Text(stringResource(R.string.forgot_password), color = ColoresFit.GrisTexto, fontSize = 12.sp)
                     }
 
                     Button(
@@ -171,7 +174,7 @@ fun PantallaLogin(
                         if (cargando) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                         } else {
-                            Text("Iniciar Sesión", color = Color.White)
+                            Text(stringResource(R.string.login_title), color = Color.White)
                         }
                     }
                 }
@@ -180,9 +183,9 @@ fun PantallaLogin(
 
             Spacer(modifier = Modifier.height(24.dp))
             Row {
-                Text("¿No tienes una cuenta? ", color = ColoresFit.GrisTexto)
+                Text("${stringResource(R.string.no_account)} ", color = ColoresFit.GrisTexto)
                 Text(
-                    "Regístrate aquí",
+                    stringResource(R.string.register_here),
                     fontWeight = FontWeight.Bold,
                     color = ColoresFit.Negro,
                     modifier = Modifier.clickable { if (!cargando) alIrARegistro() }
