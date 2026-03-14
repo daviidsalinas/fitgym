@@ -44,8 +44,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.fitgymkt.R
 import com.example.fitgymkt.model.ui.UserReservationItem
 import com.example.fitgymkt.model.ui.WorkoutHistoryItem
 import com.example.fitgymkt.repository.FitGymRepository
@@ -78,7 +80,7 @@ fun PantallaHistorial(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi historial") },
+                title = { Text(stringResource(R.string.history_title)) },
                 navigationIcon = {
                     IconButton(onClick = alAbrirMenu) { Icon(Icons.Default.Menu, null) }
                 },
@@ -94,18 +96,18 @@ fun PantallaHistorial(
         },
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
-                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
-                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
-                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
+                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
+                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
+                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
+                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
             }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Reservas") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Clases asistidas") })
-                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Entrenamientos") })
+                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.reservations)) })
+                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.attended_classes)) })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.workouts)) })
             }
 
             when {
@@ -122,7 +124,7 @@ fun PantallaHistorial(
 private fun HistorialReservas(items: List<UserReservationItem>) {
     if (items.isEmpty()) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Sin elementos todavía", color = Color.Gray)
+            Text(stringResource(R.string.no_items_yet), color = Color.Gray)
         }
         return
     }
@@ -133,7 +135,7 @@ private fun HistorialReservas(items: List<UserReservationItem>) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Text(item.className, fontWeight = FontWeight.Bold)
                     Text("${item.date} • ${item.time}")
-                    Text("Estado: ${item.state}", color = Color.Gray)
+                    Text(stringResource(R.string.status_value, item.state), color = Color.Gray)
                 }
             }
         }
@@ -144,7 +146,7 @@ private fun HistorialReservas(items: List<UserReservationItem>) {
 private fun HistorialEntrenamientos(items: List<WorkoutHistoryItem>) {
     if (items.isEmpty()) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No hay entrenamientos registrados", color = Color.Gray)
+            Text(stringResource(R.string.no_workouts_registered), color = Color.Gray)
         }
         return
     }
@@ -155,7 +157,7 @@ private fun HistorialEntrenamientos(items: List<WorkoutHistoryItem>) {
                 Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Column {
                         Text(item.date, fontWeight = FontWeight.SemiBold)
-                        Text("Duración: ${item.durationMinutes} min", color = Color.Gray)
+                        Text(stringResource(R.string.duration_minutes, item.durationMinutes), color = Color.Gray)
                     }
                 }
             }

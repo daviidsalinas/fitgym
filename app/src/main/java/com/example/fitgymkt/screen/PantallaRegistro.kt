@@ -21,6 +21,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.fitgymkt.R
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.repository.RegisterResult
 import com.example.fitgymkt.ui.theme.ColoresFit
@@ -73,19 +75,19 @@ fun PantallaRegistro(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text(" Volver al inicio de sesión", fontSize = 13.sp, color = ColoresFit.GrisTexto)
+                        Text(" ${stringResource(R.string.back_to_login)}", fontSize = 13.sp, color = ColoresFit.GrisTexto)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Crear cuenta nueva",
+                        stringResource(R.string.register_new_account),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        "Completa tus datos para comenzar",
+                        stringResource(R.string.register_subtitle),
                         color = ColoresFit.GrisTexto,
                         fontSize = 13.sp,
                         modifier = Modifier.fillMaxWidth(),
@@ -94,9 +96,9 @@ fun PantallaRegistro(
 
                     Spacer(modifier = Modifier.height(20.dp))
                     val campos = listOf(
-                        Triple(nombre, "Nombre completo", Icons.Default.Person) to { s: String -> nombre = s },
-                        Triple(correo, "Email", Icons.Default.Email) to { s: String -> correo = s },
-                        Triple(telefono, "Teléfono", Icons.Default.Phone) to { s: String -> telefono = s }
+                        Triple(nombre, stringResource(R.string.full_name), Icons.Default.Person) to { s: String -> nombre = s },
+                        Triple(correo, stringResource(R.string.email), Icons.Default.Email) to { s: String -> correo = s },
+                        Triple(telefono, stringResource(R.string.phone), Icons.Default.Phone) to { s: String -> telefono = s }
                     )
 
                     campos.forEach { (datos, setter) ->
@@ -120,13 +122,13 @@ fun PantallaRegistro(
                     OutlinedTextField(
                         value = pass,
                         onValueChange = { pass = it },
-                        placeholder = { Text("Contraseña") },
+                        placeholder = { Text(stringResource(R.string.password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = ColoresFit.AzulFit) },
                         trailingIcon = {
                             IconButton(onClick = { mostrarPass = !mostrarPass }) {
                                 Icon(
                                     imageVector = if (mostrarPass) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (mostrarPass) "Ocultar contraseña" else "Mostrar contraseña"
+                                    contentDescription = if (mostrarPass) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
                                 )
                             }
                         },
@@ -145,13 +147,13 @@ fun PantallaRegistro(
                     OutlinedTextField(
                         value = passConfirm,
                         onValueChange = { passConfirm = it },
-                        placeholder = { Text("Confirmar contraseña") },
+                        placeholder = { Text(stringResource(R.string.confirm_password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = ColoresFit.AzulFit) },
                         trailingIcon = {
                             IconButton(onClick = { mostrarPassConfirm = !mostrarPassConfirm }) {
                                 Icon(
                                     imageVector = if (mostrarPassConfirm) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (mostrarPassConfirm) "Ocultar contraseña" else "Mostrar contraseña"
+                                    contentDescription = if (mostrarPassConfirm) stringResource(R.string.hide_password) else stringResource(R.string.show_password)
                                 )
                             }
                         },
@@ -171,7 +173,7 @@ fun PantallaRegistro(
                     Button(
                         onClick = {
                             if (pass != passConfirm) {
-                                scope.launch { snackbarHostState.showSnackbar("Las contraseñas no coinciden") }
+                                scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.passwords_do_not_match)) }
                                 return@Button
                             }
 
@@ -188,7 +190,7 @@ fun PantallaRegistro(
                                 cargando = false
                                 when (result) {
                                     is RegisterResult.Success -> {
-                                        snackbarHostState.showSnackbar("Cuenta creada correctamente")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.account_created))
                                         alRegistroCompletado(result.userId, result.userName)
                                     }
 
@@ -206,13 +208,13 @@ fun PantallaRegistro(
                         if (cargando) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                         } else {
-                            Text("Crear Cuenta")
+                            Text(stringResource(R.string.create_account))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Al registrarte, aceptas nuestros Términos y Privacidad",
+                        stringResource(R.string.register_terms),
                         fontSize = 11.sp,
                         color = ColoresFit.GrisTexto,
                         textAlign = TextAlign.Center,

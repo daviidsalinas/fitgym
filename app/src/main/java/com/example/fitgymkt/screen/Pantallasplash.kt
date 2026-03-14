@@ -21,7 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.res.stringResource
+import com.example.fitgymkt.R
 import kotlinx.coroutines.delay
 
 /**
@@ -150,7 +151,7 @@ fun PantallaSplash(
                 ) {
                     Icon(
                         imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = "Logo FitGym",
+                        contentDescription = stringResource(R.string.logo_fitgym),
                         tint = Color(0xFF0A0A0A),
                         modifier = Modifier.size(48.dp)
                     )
@@ -183,7 +184,7 @@ fun PantallaSplash(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Tu Entrenamiento, Tu Ritmo",
+                text = stringResource(R.string.tagline),
                 color = Color(0xFF94A3B8),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,

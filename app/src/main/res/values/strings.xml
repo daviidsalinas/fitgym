@@ -76,11 +76,30 @@
     <string name="notifications">Notificaciones</string>
     <string name="language">Idioma</string>
     <string name="logout">Cerrar sesión</string>
+    <string name="menu">Menú</string>
+    <string name="close">Cerrar</string>
+    <string name="unread_count">%1$d sin leer</string>
+    <string name="mark_all_as_read">Marcar todas como leídas</string>
+    <string name="subscription">Suscripción</string>
+    <string name="subscription_expires">Vence: %1$s</string>
+    <string name="no_active_subscription">Sin suscripción activa</string>
+    <string name="subscription_plan_status">Plan %1$s
+Estado: %2$s
+Vence: %3$s</string>
+    <string name="contact_support">Contacto y soporte</string>
+    <string name="contact_support_body">FitGym
+Tel: +34 900 123 456
+Email: soporte@fitgym.com
+Horario: Lun-Vie 07:00 a 22:00</string>
 
     <string name="history_title">Mi historial</string>
     <string name="reservations">Reservas</string>
     <string name="attended_classes">Clases asistidas</string>
     <string name="workouts">Entrenamientos</string>
+    <string name="no_items_yet">Sin elementos todavía</string>
+    <string name="status_value">Estado: %1$s</string>
+    <string name="no_workouts_registered">No hay entrenamientos registrados</string>
+    <string name="duration_minutes">Duración: %1$d min</string>
 
     <string name="class_details">Detalles de la clase</string>
     <string name="day_and_time">Día y hora</string>

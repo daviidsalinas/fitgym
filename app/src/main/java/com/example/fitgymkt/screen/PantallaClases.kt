@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.example.fitgymkt.R
 import com.example.fitgymkt.model.ui.ClassWithSchedules
 import com.example.fitgymkt.repository.FitGymRepository
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +41,16 @@ fun PantallaClases(
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
 
-    val dias = listOf("Todos", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+    val dias = listOf(
+        "Todos" to stringResource(R.string.all_days),
+        "Lunes" to stringResource(R.string.monday),
+        "Martes" to stringResource(R.string.tuesday),
+        "Miércoles" to stringResource(R.string.wednesday),
+        "Jueves" to stringResource(R.string.thursday),
+        "Viernes" to stringResource(R.string.friday),
+        "Sábado" to stringResource(R.string.saturday),
+        "Domingo" to stringResource(R.string.sunday)
+    )
     var diaSeleccionado by remember { mutableStateOf("Todos") }
     var claseExpandida by remember { mutableStateOf<Int?>(null) }
 
@@ -72,25 +83,24 @@ fun PantallaClases(
                     selected = false,
                     onClick = { alIrAInicio() },
                     icon = { Icon(Icons.Default.Home, null) },
-                    label = { Text("Inicio") }
-                )
+                    label = { Text(stringResource(R.string.nav_home)) }                )
                 NavigationBarItem(
                     selected = true,
                     onClick = { },
                     icon = { Icon(Icons.Default.DateRange, null) },
-                    label = { Text("Clases") }
+                    label = { Text(stringResource(R.string.nav_classes)) }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { alIrAAnalisis() },
                     icon = { Icon(Icons.Default.BarChart, null) },
-                    label = { Text("Análisis") }
+                    label = { Text(stringResource(R.string.nav_analysis)) }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { alIrAPerfil() },
                     icon = { Icon(Icons.Default.Person, null) },
-                    label = { Text("Perfil") }
+                    label = { Text(stringResource(R.string.nav_profile)) }
                 )
             }
         }
@@ -98,19 +108,18 @@ fun PantallaClases(
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
 
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Clases Disponibles", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Text("Reserva tu plaza", color = Color.Gray, fontSize = 14.sp)
+                Text(stringResource(R.string.classes_available), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.reserve_spot), color = Color.Gray, fontSize = 14.sp)
             }
 
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(dias) { dia ->
-                    FilterChip(
-                        selected = diaSeleccionado == dia,
-                        onClick = { diaSeleccionado = dia },
-                        label = { Text(dia) },
+                items(dias) { (diaValor, diaTexto) ->                    FilterChip(
+                    selected = diaSeleccionado == diaValor,
+                    onClick = { diaSeleccionado = diaValor },
+                    label = { Text(diaTexto) },
                         shape = RoundedCornerShape(20.dp)
                     )
                 }
@@ -129,7 +138,7 @@ fun PantallaClases(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (clases!!.isEmpty()) {
-                    item { Text("No hay clases para el filtro seleccionado", color = Color.Gray) }
+                    item { Text(stringResource(R.string.no_classes_for_filter), color = Color.Gray) }
                 }
 
                 items(clases!!) { clase ->
@@ -261,7 +270,7 @@ fun FilaHorario(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                if (esCritico) Text("¡Pocas plazas!", color = Color(0xFFE65100), fontSize = 10.sp)
+                if (esCritico) Text(stringResource(R.string.few_spots), color = Color(0xFFE65100), fontSize = 10.sp)
             }
             Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.LightGray)
         }

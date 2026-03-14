@@ -26,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.example.fitgymkt.R
 import com.example.fitgymkt.model.ui.HomeData
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
@@ -62,7 +64,7 @@ fun PantallaInicio(
                 title = { },
                 navigationIcon = {
                     IconButton(onClick = alAbrirMenu) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menú")
+                        Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu))
                     }
                 },
                 actions = {
@@ -77,10 +79,10 @@ fun PantallaInicio(
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Inicio") })
-                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Clases") })
-                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text("Análisis") })
-                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") })
+                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
+                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
+                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
+                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
             }
         }
     ) { padding ->
@@ -102,19 +104,19 @@ fun PantallaInicio(
         ) {
             // Bienvenida
             Text(
-                "¡Hola, ${data.userName}!",
+                stringResource(R.string.home_greeting, data.userName),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Text("Hoy es un buen día para entrenar", color = Color.Gray)
+            Text(stringResource(R.string.home_motivation), color = Color.Gray)
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Resumen de Actividad
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CardInicioAccion("Reservar clase", "Ver clases", Icons.Default.DateRange, alIrAClases, Modifier.weight(1f))
-                CardInicioAccion("Música del gym", "Abrir Spotify", Icons.Default.LibraryMusic, {
+                CardInicioAccion(stringResource(R.string.book_class), stringResource(R.string.see_classes), Icons.Default.DateRange, alIrAClases, Modifier.weight(1f))
+                CardInicioAccion(stringResource(R.string.gym_music), stringResource(R.string.open_spotify), Icons.Default.LibraryMusic, {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com/playlist/37i9dQZF1DXaxEKcoCdWHD?si=32f691f5ae2c4c86")))
                 }, Modifier.weight(1f))
             }
@@ -122,13 +124,13 @@ fun PantallaInicio(
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CardInicioAccion("Mi progreso", "Ir a análisis", Icons.Default.BarChart, alIrAAnalisis, Modifier.weight(1f))
-                CardInicioAccion("Mi historial", "Mis reservas", Icons.Default.History, alIrAHistorial, Modifier.weight(1f))
+                CardInicioAccion(stringResource(R.string.my_progress), stringResource(R.string.go_to_analysis), Icons.Default.BarChart, alIrAAnalisis, Modifier.weight(1f))
+                CardInicioAccion(stringResource(R.string.my_history), stringResource(R.string.my_reservations), Icons.Default.History, alIrAHistorial, Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Siguiente clase", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.next_class), fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
             val nextClass = data.todayClasses.firstOrNull()
             if (nextClass != null) {
@@ -139,7 +141,7 @@ fun PantallaInicio(
                     icono = iconByClass(nextClass.className)
                 )
             } else {
-                Text("No tienes clases próximas", color = Color.Gray)
+                Text(stringResource(R.string.no_upcoming_classes), color = Color.Gray)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -177,17 +179,17 @@ private fun TarjetaRegistroEntrenamiento(
 ) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Registrar entrenamiento", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text("Disponible en Inicio y Análisis", color = Color.Gray, fontSize = 12.sp)
+            Text(stringResource(R.string.register_training), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(stringResource(R.string.register_training_hint), color = Color.Gray, fontSize = 12.sp)
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                AjustadorNumero("Horas", horasEntrenamiento, 0..8, onHorasChange)
-                AjustadorNumero("Min", minutosEntrenamiento, 0..59, onMinutosChange)
+                AjustadorNumero(stringResource(R.string.hours), horasEntrenamiento, 0..8, onHorasChange)
+                AjustadorNumero(stringResource(R.string.minutes_short), minutosEntrenamiento, 0..59, onMinutosChange)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Button(onClick = onRegistrar, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Bolt, null)
-                Text(" Registrar ${(horasEntrenamiento * 60) + minutosEntrenamiento} min")
+                Text(" ${stringResource(R.string.register_minutes, (horasEntrenamiento * 60) + minutosEntrenamiento)}")
             }
         }
     }

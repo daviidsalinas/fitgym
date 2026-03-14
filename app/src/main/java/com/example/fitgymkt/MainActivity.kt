@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -277,8 +278,8 @@ fun DialogoNotificacionesGlobal(
                     Icon(Icons.Default.Notifications, null)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Notificaciones", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("${notificaciones.count { !it.read }} sin leer", color = Color.Gray, fontSize = 12.sp)
+                        Text(stringResource(R.string.notifications), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text(stringResource(R.string.unread_count, notificaciones.count { !it.read }), color = Color.Gray, fontSize = 12.sp)
                     }
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null) }
                 }
@@ -290,7 +291,8 @@ fun DialogoNotificacionesGlobal(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
-                    Text(" Marcar todas como leídas", fontSize = 13.sp)
+                    Text(" ${stringResource(R.string.mark_all_as_read)}", fontSize = 13.sp)
+
                 }
 
                 notificaciones.forEach {
@@ -338,7 +340,7 @@ fun ContenidoMenuLateral(
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
             IconButton(onClick = alCerrar, modifier = Modifier.align(Alignment.End)) {
-                Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(60.dp).background(Color.Black, CircleShape), contentAlignment = Alignment.Center) {
@@ -350,17 +352,17 @@ fun ContenidoMenuLateral(
                 }
             }
             Spacer(modifier = Modifier.height(40.dp))
-            ItemMenuLateral(Icons.Default.CreditCard, "Suscripción", onClick = alVerSuscripcion)
-            Text(subscription?.let { "Vence: ${it.endDate}" } ?: "Sin suscripción activa", fontSize = 12.sp, color = Color.Gray)
-            ItemMenuLateral(Icons.Default.HeadsetMic, "Contacto y Soporte", onClick = alVerContacto)
-            ItemMenuLateral(Icons.Default.History, "Historial", onClick = alVerHistorial)
+            ItemMenuLateral(Icons.Default.CreditCard, stringResource(R.string.subscription), onClick = alVerSuscripcion)
+            Text(subscription?.let { stringResource(R.string.subscription_expires, it.endDate) } ?: stringResource(R.string.no_active_subscription), fontSize = 12.sp, color = Color.Gray)
+            ItemMenuLateral(Icons.Default.HeadsetMic, stringResource(R.string.contact_support), onClick = alVerContacto)
+            ItemMenuLateral(Icons.Default.History, stringResource(R.string.nav_history), onClick = alVerHistorial)
             Spacer(modifier = Modifier.weight(1f))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             TextButton(onClick = alCerrarSesion, modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.Red)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("Cerrar Sesión", color = Color.Red, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.logout), color = Color.Red, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -388,8 +390,8 @@ fun ItemMenuLateral(icono: ImageVector, texto: String, onClick: () -> Unit) {
 fun DialogoSuscripcionGlobal(suscripcion: SubscriptionStatus?, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
-        title = { Text("Suscripción") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        title = { Text(stringResource(R.string.subscription)) },
         text = {
             Text(
                 suscripcion?.let { "Plan ${it.type}\nEstado: ${it.status}\nVence: ${it.endDate}" }
@@ -403,8 +405,8 @@ fun DialogoSuscripcionGlobal(suscripcion: SubscriptionStatus?, onDismiss: () -> 
 fun DialogoContactoSoporte(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
-        title = { Text("Contacto y soporte") },
-        text = { Text("FitGym\nTel: +34 900 123 456\nEmail: soporte@fitgym.com\nHorario: Lun-Vie 07:00 a 22:00") }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+        title = { Text(stringResource(R.string.contact_support)) },
+        text = { Text(stringResource(R.string.contact_support_body)) }
     )
 }
