@@ -107,6 +107,7 @@ fun PantallaPerfil(
     alIrAInicio: () -> Unit,
     alIrAClases: () -> Unit,
     alIrAAnalisis: () -> Unit,
+    unreadNotifications: Int,
     modoOscuroActivado: Boolean,
     onModoOscuroChanged: (Boolean) -> Unit,
     onIdiomaChanged: (String) -> Unit,
@@ -142,9 +143,14 @@ fun PantallaPerfil(
                     }
                 },
                 actions = {
-                    // 2. Conectamos la campana con el diálogo global
                     IconButton(onClick = alAbrirNotificaciones) {
-                        BadgedBox(badge = { Badge { Text("2") } }) {
+                        BadgedBox(
+                            badge = {
+                                if (unreadNotifications > 0) {
+                                    Badge { Text(unreadNotifications.toString()) }
+                                }
+                            }
+                        ) {
                             Icon(Icons.Default.Notifications, null)
                         }
                     }
@@ -169,6 +175,7 @@ fun PantallaPerfil(
         }
 
         val data = profileData!!
+        val languageUpdatedMessage = stringResource(R.string.profile_language_updated)
 
         when (campoEnEdicion) {
             PerfilCampoEditable.Email,
@@ -234,7 +241,7 @@ fun PantallaPerfil(
                                     refreshKey++
                                     onIdiomaChanged(idiomaSeleccionado)
                                     campoEnEdicion = null
-                                    stringResource(R.string.profile_language_updated)
+                                    languageUpdatedMessage
                                 }
 
                                 is ActionResult.Error -> resultado.message
@@ -306,7 +313,23 @@ fun PantallaPerfil(
                     Switch(checked = modoOscuroActivado, onCheckedChange = onModoOscuroChanged)
                 }
                 ItemConfiguracion(Icons.Default.Notifications, stringResource(R.string.notifications), stringResource(R.string.profile_realtime_alerts)) {
-                    Switch(checked = notificacionesInternas, onCheckedChange = { notificacionesInternas = it })
+                    Switch(
+                        checked = notificacionesInternas,
+                        onCheckedChange = { enabled ->
+                            notificacionesInternas = enabled
+                            scope.launch {
+                                when (val result = withContext(Dispatchers.IO) {
+                                    repository.updateProfileNotifications(userId, enabled)
+                                }) {
+                                    is ActionResult.Success -> snackbarHostState.showSnackbar(result.message)
+                                    is ActionResult.Error -> {
+                                        notificacionesInternas = !enabled
+                                        snackbarHostState.showSnackbar(result.message)
+                                    }
+                                }
+                            }
+                        }
+                    )
                 }
                 ItemPerfil(
                     Icons.Default.Language,

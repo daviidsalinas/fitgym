@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,7 +40,7 @@ class MainActivity : ComponentActivity() {
         val savedLanguage = getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
             .getString(KEY_LANGUAGE, "ES")
             ?: "ES"
-        applyAppLanguage(savedLanguage)
+        applyAppLanguage(this, savedLanguage)
         setContent {
             var esModoOscuro by remember { mutableStateOf(false) }
             var mostrarNotificaciones by remember { mutableStateOf(false) }
@@ -61,7 +62,12 @@ class MainActivity : ComponentActivity() {
                 val drawerHabilitado = usuarioSesion != null && rutaActual !in setOf("splash", "login", "registro")
 
                 LaunchedEffect(usuarioSesion?.userId) {
-                    val userId = usuarioSesion?.userId ?: return@LaunchedEffect
+                    val userId = usuarioSesion?.userId
+                    if (userId == null) {
+                        notificaciones = emptyList()
+                        suscripcion = null
+                        return@LaunchedEffect
+                    }
                     notificaciones = repository.getNotifications(userId)
                     suscripcion = repository.getCurrentSubscription(userId)
                 }
@@ -98,6 +104,9 @@ class MainActivity : ComponentActivity() {
                             },
                             alCerrarSesion = {
                                 usuarioSesion = null
+                                mostrarNotificaciones = false
+                                mostrarSuscripcion = false
+                                mostrarContacto = false
                                 scope.launch { drawerState.close() }
                             }
                         )
@@ -136,6 +145,7 @@ fun NavegacionPrincipal(
     rutaSolicitada: String?,
     alConsumirRutaSolicitada: () -> Unit
 ) {
+    val context = LocalContext.current
     val controladorNavegacion = rememberNavController()
 
     LaunchedEffect(rutaSolicitada) {
@@ -229,10 +239,11 @@ fun NavegacionPrincipal(
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
                 alIrAClases = { controladorNavegacion.navigate("clases") },
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
+                unreadNotifications = unreadNotifications,
                 modoOscuroActivado = modoOscuroActual,
                 onModoOscuroChanged = alCambiarModoOscuro,
                 onIdiomaChanged = { codigo ->
-                    applyAppLanguage(codigo)
+                    applyAppLanguage(context, codigo)
                     controladorNavegacion.navigate("perfil") {
                         popUpTo("perfil") { inclusive = true }
                     }
@@ -273,15 +284,16 @@ fun NavegacionPrincipal(
 private const val APP_PREFS = "fitgym_app_prefs"
 private const val KEY_LANGUAGE = "selected_language"
 
-private fun MainActivity.applyAppLanguage(languageCode: String) {
+private fun applyAppLanguage(context: Context, languageCode: String) {
     val locale = Locale(languageCode.lowercase(Locale.ROOT))
     Locale.setDefault(locale)
 
+    val resources = context.resources
     val configuration = resources.configuration
     configuration.setLocale(locale)
     resources.updateConfiguration(configuration, resources.displayMetrics)
 
-    getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+    context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
         .edit()
         .putString(KEY_LANGUAGE, languageCode.uppercase(Locale.ROOT))
         .apply()

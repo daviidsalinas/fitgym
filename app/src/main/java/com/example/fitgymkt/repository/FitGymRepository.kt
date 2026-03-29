@@ -612,6 +612,34 @@ class FitGymRepository(context: Context) {
         }
     }
 
+    fun updateProfileNotifications(userId: Int, enabled: Boolean): ActionResult {
+        val db = dbHelper.writableDatabase
+        return try {
+            db.beginTransaction()
+
+            val exists = db.rawQuery(
+                "SELECT 1 FROM configuracion_usuario WHERE id_usuario = ? LIMIT 1",
+                arrayOf(userId.toString())
+            ).use { it.moveToFirst() }
+
+            val values = ContentValues().apply { put("notificaciones", if (enabled) 1 else 0) }
+            if (exists) {
+                db.update("configuracion_usuario", values, "id_usuario = ?", arrayOf(userId.toString()))
+            } else {
+                values.put("id_usuario", userId)
+                values.put("idioma", "ES")
+                db.insertOrThrow("configuracion_usuario", null, values)
+            }
+
+            db.setTransactionSuccessful()
+            ActionResult.Success("Preferencias de notificaciones actualizadas")
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudieron actualizar las notificaciones")
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun getClassesByWeekDay(dayFilter: String): List<ClassWithSchedules> {
         val db = dbHelper.readableDatabase
         val query =
