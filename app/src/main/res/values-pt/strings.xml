@@ -123,6 +123,11 @@
     <string name="profile_settings">Configurações</string>
     <string name="profile_app_theme">Tema do app</string>
     <string name="profile_realtime_alerts">Alertas em tempo real</string>
+    <string name="profile_language_english">Inglês</string>
+    <string name="profile_language_german">Alemão</string>
+    <string name="profile_language_portuguese">Português</string>
+    <string name="profile_select_language">Selecione um idioma</string>
+    <string name="profile_language_updated">Idioma atualizado</string>
     <string name="profile_language_spanish">Espanhol</string>
     <string name="profile_security">Segurança</string>
     <string name="profile_change_credentials">Alterar credenciais</string>

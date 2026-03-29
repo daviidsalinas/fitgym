@@ -134,6 +134,11 @@
     <string name="profile_settings">Configuración</string>
     <string name="profile_app_theme">Tema de la aplicación</string>
     <string name="profile_realtime_alerts">Alertas en tiempo real</string>
+    <string name="profile_language_english">Inglés</string>
+    <string name="profile_language_german">Alemán</string>
+    <string name="profile_language_portuguese">Portugués</string>
+    <string name="profile_select_language">Selecciona un idioma</string>
+    <string name="profile_language_updated">Idioma actualizado</string>
     <string name="profile_language_spanish">Español</string>
     <string name="profile_security">Seguridad</string>
     <string name="profile_change_credentials">Cambiar credenciales</string>

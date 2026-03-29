@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
@@ -94,6 +95,7 @@ private enum class PerfilCampoEditable {
     Edad,
     Peso,
     Altura,
+    Idioma,
     Password,
     Privacidad
 }
@@ -107,6 +109,7 @@ fun PantallaPerfil(
     alIrAAnalisis: () -> Unit,
     modoOscuroActivado: Boolean,
     onModoOscuroChanged: (Boolean) -> Unit,
+    onIdiomaChanged: (String) -> Unit,
     alAbrirMenu: () -> Unit,
     alAbrirNotificaciones: () -> Unit,
     alCerrarSesion: () -> Unit
@@ -217,6 +220,32 @@ fun PantallaPerfil(
                 )
             }
 
+            PerfilCampoEditable.Idioma -> {
+                DialogoCambiarIdioma(
+                    idiomaActual = data.language,
+                    onDismiss = { campoEnEdicion = null },
+                    onSeleccionar = { idiomaSeleccionado ->
+                        scope.launch {
+                            val resultado = withContext(Dispatchers.IO) {
+                                repository.updateProfileLanguage(userId, idiomaSeleccionado)
+                            }
+                            val mensaje = when (resultado) {
+                                is ActionResult.Success -> {
+                                    refreshKey++
+                                    onIdiomaChanged(idiomaSeleccionado)
+                                    campoEnEdicion = null
+                                    stringResource(R.string.profile_language_updated)
+                                }
+
+                                is ActionResult.Error -> resultado.message
+                            }
+                            snackbarHostState.showSnackbar(mensaje)
+                        }
+                    }
+                )
+            }
+
+
             PerfilCampoEditable.Privacidad -> {
                 DialogoPrivacidad(onDismiss = { campoEnEdicion = null })
             }
@@ -279,8 +308,13 @@ fun PantallaPerfil(
                 ItemConfiguracion(Icons.Default.Notifications, stringResource(R.string.notifications), stringResource(R.string.profile_realtime_alerts)) {
                     Switch(checked = notificacionesInternas, onCheckedChange = { notificacionesInternas = it })
                 }
-                ItemPerfil(Icons.Default.Language, stringResource(R.string.language), if (data.language == "ES") stringResource(R.string.profile_language_spanish) else data.language, mostrarFlecha = false)            }
-
+                ItemPerfil(
+                    Icons.Default.Language,
+                    stringResource(R.string.language),
+                    nombreIdioma(code = data.language),
+                    mostrarFlecha = true
+                ) { campoEnEdicion = PerfilCampoEditable.Idioma }
+            }
             Spacer(modifier = Modifier.height(24.dp))
 
             // 5. Seguridad
@@ -307,6 +341,14 @@ fun PantallaPerfil(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun nombreIdioma(code: String): String = when (code.uppercase(Locale.ROOT)) {
+    "EN" -> stringResource(R.string.profile_language_english)
+    "DE" -> stringResource(R.string.profile_language_german)
+    "PT" -> stringResource(R.string.profile_language_portuguese)
+    else -> stringResource(R.string.profile_language_spanish)
 }
 
 @Composable
@@ -382,6 +424,40 @@ private fun DialogoCambiarPassword(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = actual, onValueChange = { actual = it }, label = { Text(stringResource(R.string.current_password)) }, singleLine = true)
                 OutlinedTextField(value = nueva, onValueChange = { nueva = it }, label = { Text(stringResource(R.string.new_password)) }, singleLine = true)
+            }
+        }
+    )
+}
+
+@Composable
+private fun DialogoCambiarIdioma(
+    idiomaActual: String,
+    onDismiss: () -> Unit,
+    onSeleccionar: (String) -> Unit
+) {
+    val idiomas = listOf("ES", "EN", "DE", "PT")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        title = { Text(stringResource(R.string.profile_select_language)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                idiomas.forEach { code ->
+                    val seleccionado = code == idiomaActual.uppercase(Locale.ROOT)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSeleccionar(code) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(nombreIdioma(code = code), modifier = Modifier.weight(1f))
+                        if (seleccionado) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    }
+                }
             }
         }
     )

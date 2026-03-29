@@ -578,6 +578,40 @@ class FitGymRepository(context: Context) {
         }
     }
 
+    fun updateProfileLanguage(userId: Int, languageCode: String): ActionResult {
+        val normalizedCode = languageCode.trim().uppercase(Locale.ROOT)
+        val supportedLanguages = setOf("ES", "EN", "DE", "PT")
+        if (normalizedCode !in supportedLanguages) {
+            return ActionResult.Error("Idioma no soportado")
+        }
+
+        val db = dbHelper.writableDatabase
+        return try {
+            db.beginTransaction()
+
+            val exists = db.rawQuery(
+                "SELECT 1 FROM configuracion_usuario WHERE id_usuario = ? LIMIT 1",
+                arrayOf(userId.toString())
+            ).use { it.moveToFirst() }
+
+            val values = ContentValues().apply { put("idioma", normalizedCode) }
+            if (exists) {
+                db.update("configuracion_usuario", values, "id_usuario = ?", arrayOf(userId.toString()))
+            } else {
+                values.put("id_usuario", userId)
+                values.put("notificaciones", 1)
+                db.insertOrThrow("configuracion_usuario", null, values)
+            }
+
+            db.setTransactionSuccessful()
+            ActionResult.Success("Idioma actualizado")
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudo actualizar el idioma")
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun getClassesByWeekDay(dayFilter: String): List<ClassWithSchedules> {
         val db = dbHelper.readableDatabase
         val query =

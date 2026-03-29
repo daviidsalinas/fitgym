@@ -1,6 +1,7 @@
 package com.example.fitgymkt
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -30,10 +31,15 @@ import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.screen.*
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val savedLanguage = getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_LANGUAGE, "ES")
+            ?: "ES"
+        applyAppLanguage(savedLanguage)
         setContent {
             var esModoOscuro by remember { mutableStateOf(false) }
             var mostrarNotificaciones by remember { mutableStateOf(false) }
@@ -225,6 +231,12 @@ fun NavegacionPrincipal(
                 alIrAAnalisis = { controladorNavegacion.navigate("analisis") },
                 modoOscuroActivado = modoOscuroActual,
                 onModoOscuroChanged = alCambiarModoOscuro,
+                onIdiomaChanged = { codigo ->
+                    applyAppLanguage(codigo)
+                    controladorNavegacion.navigate("perfil") {
+                        popUpTo("perfil") { inclusive = true }
+                    }
+                },
                 alCerrarSesion = {
                     alCambiarSesion(null)
                     controladorNavegacion.navigate("login") { popUpTo(controladorNavegacion.graph.id) { inclusive = true } }
@@ -256,6 +268,23 @@ fun NavegacionPrincipal(
             )
         }
     }
+}
+
+private const val APP_PREFS = "fitgym_app_prefs"
+private const val KEY_LANGUAGE = "selected_language"
+
+private fun MainActivity.applyAppLanguage(languageCode: String) {
+    val locale = Locale(languageCode.lowercase(Locale.ROOT))
+    Locale.setDefault(locale)
+
+    val configuration = resources.configuration
+    configuration.setLocale(locale)
+    resources.updateConfiguration(configuration, resources.displayMetrics)
+
+    getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putString(KEY_LANGUAGE, languageCode.uppercase(Locale.ROOT))
+        .apply()
 }
 
 @Composable
