@@ -10,6 +10,7 @@ import com.example.fitgymkt.model.ui.ClassWithSchedules
 import com.example.fitgymkt.model.ui.HomeData
 import com.example.fitgymkt.model.ui.AppNotification
 import com.example.fitgymkt.model.ui.ProfileData
+import com.example.fitgymkt.model.ui.PushReminder
 import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.model.ui.SubscriptionStatus
 import com.example.fitgymkt.model.ui.TodayClassItem
@@ -612,6 +613,31 @@ class FitGymRepository(context: Context) {
         }
     }
 
+    fun updateProfilePhoto(userId: Int, avatarKey: String): ActionResult {
+        val allowedAvatars = setOf("avatar_fire", "avatar_ocean", "avatar_forest", "avatar_midnight")
+        if (avatarKey !in allowedAvatars) {
+            return ActionResult.Error("Avatar no válido")
+        }
+
+        val db = dbHelper.writableDatabase
+        return try {
+            val rowsUpdated = db.update(
+                "usuario",
+                ContentValues().apply { put("fotoPerfil", avatarKey) },
+                "id_usuario = ?",
+                arrayOf(userId.toString())
+            )
+
+            if (rowsUpdated > 0) {
+                ActionResult.Success("Foto de perfil actualizada")
+            } else {
+                ActionResult.Error("No se encontró el usuario")
+            }
+        } catch (_: Exception) {
+            ActionResult.Error("No se pudo actualizar la foto")
+        }
+    }
+
     fun updateProfileNotifications(userId: Int, enabled: Boolean): ActionResult {
         val db = dbHelper.writableDatabase
         return try {
@@ -640,6 +666,50 @@ class FitGymRepository(context: Context) {
         }
     }
 
+    fun getUpcomingClassReminder(userId: Int): PushReminder? {
+        val db = dbHelper.readableDatabase
+        val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+        val now = Date()
+
+        val nextClass = db.rawQuery(
+            """
+            SELECT h.id_horario, c.nombre, h.fecha, h.hora_inicio
+            FROM reserva r
+            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
+            INNER JOIN clase c ON c.id_clase = h.id_clase
+            WHERE r.id_usuario = ? AND r.estado = 'reservada'
+            ORDER BY h.fecha ASC, h.hora_inicio ASC
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(userId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return null
+            val scheduleId = cursor.getInt(0)
+            val className = cursor.getString(1)
+            val date = cursor.getString(2)
+            val time = cursor.getString(3)
+            Quadruple(scheduleId, className, date, time)
+        }
+
+        val dateTime = dateFormatter.parse("${nextClass.third} ${nextClass.fourth}") ?: return null
+        val diffMs = dateTime.time - now.time
+        val hoursUntilClass = TimeUnit.MILLISECONDS.toHours(diffMs)
+
+        if (hoursUntilClass !in 0..24) return null
+
+        return PushReminder(
+            uniqueId = "${nextClass.first}-${nextClass.third}-${nextClass.fourth}",
+            title = "Recordatorio de clase",
+            message = "Te esperamos en ${nextClass.second} hoy a las ${nextClass.fourth}"
+        )
+    }
+
+    private data class Quadruple<A, B, C, D>(
+        val first: A,
+        val second: B,
+        val third: C,
+        val fourth: D
+    )
     fun getClassesByWeekDay(dayFilter: String): List<ClassWithSchedules> {
         val db = dbHelper.readableDatabase
         val query =

@@ -25,3 +25,9 @@ data class AppNotification(
     val timestamp: String,
     val read: Boolean = false
 )
+
+data class PushReminder(
+    val uniqueId: String,
+    val title: String,
+    val message: String
+)

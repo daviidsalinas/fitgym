@@ -158,4 +158,6 @@ Hours: Mon-Fri 07:00 to 22:00</string>
     <string name="requirement_towel">Personal towel</string>
     <string name="requirement_arrive_early">Arrive 10 minutes early</string>
     <string name="cancellation_policy_body">You can cancel your reservation up to 2 hours before class starts with no penalty.</string>
+    <string name="push_channel_name">FitGym Reminders</string>
+    <string name="push_channel_description">Notifications for your upcoming booked classes.</string>
 </resources>

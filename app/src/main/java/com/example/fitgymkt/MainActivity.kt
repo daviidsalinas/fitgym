@@ -1,9 +1,15 @@
 package com.example.fitgymkt
 
+import android.Manifest
 import android.os.Bundle
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,6 +34,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.*
 import com.example.fitgymkt.model.ui.AppNotification
 import com.example.fitgymkt.model.ui.SubscriptionStatus
+import com.example.fitgymkt.notifications.PushNotificationScheduler
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.screen.*
 import kotlinx.coroutines.flow.collectLatest
@@ -53,10 +60,14 @@ class MainActivity : ComponentActivity() {
 
             MaterialTheme(colorScheme = colores) {
                 val context = androidx.compose.ui.platform.LocalContext.current
+                val requestNotificationPermission = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { }
                 val repository = remember(context) { FitGymRepository(context) }
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
                 var usuarioSesion by remember { mutableStateOf<UsuarioSesion?>(null) }
+                var usuarioProgramadoId by remember { mutableStateOf<Int?>(null) }
                 var rutaSolicitada by remember { mutableStateOf<String?>(null) }
                 var rutaActual by remember { mutableStateOf("splash") }
                 val drawerHabilitado = usuarioSesion != null && rutaActual !in setOf("splash", "login", "registro")
@@ -64,9 +75,24 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(usuarioSesion?.userId) {
                     val userId = usuarioSesion?.userId
                     if (userId == null) {
+                        if (usuarioProgramadoId != null) {
+                            PushNotificationScheduler.cancel(context, usuarioProgramadoId!!)
+                            usuarioProgramadoId = null
+                        }
                         notificaciones = emptyList()
                         suscripcion = null
                         return@LaunchedEffect
+                    }
+                    if (usuarioProgramadoId != null && usuarioProgramadoId != userId) {
+                        PushNotificationScheduler.cancel(context, usuarioProgramadoId!!)
+                    }
+                    PushNotificationScheduler.schedule(context, userId)
+                    usuarioProgramadoId = userId
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                     notificaciones = repository.getNotifications(userId)
                     suscripcion = repository.getCurrentSubscription(userId)

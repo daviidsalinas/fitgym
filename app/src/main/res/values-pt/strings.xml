@@ -153,4 +153,6 @@
     <string name="requirement_towel">Toalha pessoal</string>
     <string name="requirement_arrive_early">Chegar 10 minutos antes</string>
     <string name="cancellation_policy_body">Você pode cancelar sua reserva até 2 horas antes do início da aula sem penalidade.</string>
+    <string name="push_channel_name">Lembretes do FitGym</string>
+    <string name="push_channel_description">Avisos para as suas próximas aulas reservadas.</string>
 </resources>

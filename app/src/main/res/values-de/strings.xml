@@ -153,4 +153,6 @@
     <string name="requirement_towel">Eigenes Handtuch</string>
     <string name="requirement_arrive_early">10 Minuten früher kommen</string>
     <string name="cancellation_policy_body">Du kannst deine Reservierung bis zu 2 Stunden vor Kursbeginn ohne Strafgebühr stornieren.</string>
+    <string name="push_channel_name">FitGym-Erinnerungen</string>
+    <string name="push_channel_description">Benachrichtigungen für deine nächsten gebuchten Kurse.</string>
 </resources>
