@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    kotlin("plugin.serialization")version "2.0.21"
 }
 
 android {
@@ -58,13 +59,24 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("org.xerial:sqlite-jdbc:3.41.2.1") // versión actual
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("androidx.compose.material3:material3:1.2.0")
-    implementation("androidx.compose.material:material-icons-extended:1.6.1") // ESTA QUITA LOS ERRORES DE ICONOS
+    implementation("androidx.compose.material:material-icons-extended:1.6.1")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // --- BBDD SUPABASE ---
+    // Motor principal y base de datos
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.0.1")
+    // Autenticación (por si en el futuro quieres login)
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:3.0.1")
+    // El motor de red que usa Supabase para hablar con internet
+    implementation("io.ktor:ktor-client-android:3.0.1")
+    implementation("io.ktor:ktor-client-content-negotiation:3.0.1")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.1")
+
+    // Serialización (El traductor JSON -> Kotlin)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
 
 

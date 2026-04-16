@@ -95,7 +95,6 @@ private enum class PerfilCampoEditable {
     Edad,
     Peso,
     Altura,
-    Foto,
     Idioma,
     Password,
     Privacidad
@@ -228,27 +227,6 @@ fun PantallaPerfil(
                 )
             }
 
-            PerfilCampoEditable.Foto -> {
-                DialogoCambiarAvatar(
-                    avatarActual = data.profilePhoto,
-                    onDismiss = { campoEnEdicion = null },
-                    onSeleccionar = { avatar ->
-                        scope.launch {
-                            when (val result = withContext(Dispatchers.IO) {
-                                repository.updateProfilePhoto(userId, avatar)
-                            }) {
-                                is ActionResult.Success -> {
-                                    snackbarHostState.showSnackbar(result.message)
-                                    refreshKey += 1
-                                    campoEnEdicion = null
-                                }
-                                is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
-                            }
-                        }
-                    }
-                )
-            }
-
             PerfilCampoEditable.Idioma -> {
                 DialogoCambiarIdioma(
                     idiomaActual = data.language,
@@ -306,11 +284,6 @@ fun PantallaPerfil(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(data.fullName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.profile_change_photo),
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { campoEnEdicion = PerfilCampoEditable.Foto }
-                    )
                 }
             }
 
@@ -428,45 +401,6 @@ private fun FotoPerfil(profilePhoto: String, size: androidx.compose.ui.unit.Dp =
             Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(50.dp))
         }
     }
-}
-
-@Composable
-private fun DialogoCambiarAvatar(
-    avatarActual: String,
-    onDismiss: () -> Unit,
-    onSeleccionar: (String) -> Unit
-) {
-    val opciones = listOf("avatar_fire", "avatar_ocean", "avatar_forest", "avatar_midnight")
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        title = { Text(stringResource(R.string.profile_choose_avatar)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                opciones.forEach { avatar ->
-                    val seleccionado = avatar == avatarActual
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSeleccionar(avatar) }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FotoPerfil(profilePhoto = avatar, size = 40.dp)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = avatar.removePrefix("avatar_").replaceFirstChar { it.uppercaseChar() },
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (seleccionado) {
-                            Icon(Icons.Default.Check, contentDescription = null)
-                        }
-                    }
-                }
-            }
-        }
-    )
 }
 
 @Composable
