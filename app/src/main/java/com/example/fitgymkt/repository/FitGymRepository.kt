@@ -1,14 +1,13 @@
 package com.example.fitgymkt.repository
 
-import android.content.ContentValues
 import android.content.Context
 import android.util.Patterns
-import com.example.fitgymkt.data.FitGymDbHelper
+import com.example.fitgymkt.data.SupabaseRestClient
 import com.example.fitgymkt.model.ui.AnalysisData
+import com.example.fitgymkt.model.ui.AppNotification
 import com.example.fitgymkt.model.ui.ClassScheduleItem
 import com.example.fitgymkt.model.ui.ClassWithSchedules
 import com.example.fitgymkt.model.ui.HomeData
-import com.example.fitgymkt.model.ui.AppNotification
 import com.example.fitgymkt.model.ui.ProfileData
 import com.example.fitgymkt.model.ui.PushReminder
 import com.example.fitgymkt.model.ui.ReservationDetailData
@@ -16,6 +15,7 @@ import com.example.fitgymkt.model.ui.SubscriptionStatus
 import com.example.fitgymkt.model.ui.TodayClassItem
 import com.example.fitgymkt.model.ui.UserReservationItem
 import com.example.fitgymkt.model.ui.WorkoutHistoryItem
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -24,446 +24,243 @@ import java.util.concurrent.TimeUnit
 
 class FitGymRepository(context: Context) {
 
-    private val dbHelper = FitGymDbHelper(context.applicationContext)
+    private val api = SupabaseRestClient(context)
 
     fun getHomeData(userId: Int): HomeData {
-        val db = dbHelper.readableDatabase
+        return runCatching {
+            val user = getSingleRow("usuario", mapOf("id_usuario" to eq(userId)), "nombre")
+            val userName = user?.optString("nombre").orEmpty().ifBlank { "Usuario" }
 
-        val userName = db.rawQuery(
-            "SELECT nombre FROM usuario WHERE id_usuario = ?",
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else "Usuario"
-        }
+            val activities = getRows("actividad_usuario", mapOf("id_usuario" to eq(userId)), "fecha,duracion_minutos")
+            val totalMinutes = activities.sumOf { it.optInt("duracion_minutos", 0) }
+            val calories = activities.sumOf { it.optInt("duracion_minutos", 0) * 8 }
 
-        val calories = db.rawQuery(
-            """
-            SELECT COALESCE(SUM(duracion_minutos * 8), 0)
-            FROM actividad_usuario
-            WHERE id_usuario = ?
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getInt(0) else 0
-        }
+            val reservations = getRows(
+                "reserva",
+                filters = mapOf("id_usuario" to eq(userId), "estado" to inList("reservada", "completada")),
+                select = "id_horario",
+                orderBy = "fecha_reserva",
+                ascending = true,
+                limit = 3
+            )
 
-        val totalMinutes = db.rawQuery(
-            """
-            SELECT COALESCE(SUM(duracion_minutos), 0)
-            FROM actividad_usuario
-            WHERE id_usuario = ?
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getInt(0) else 0
-        }
-
-        val todayClasses = db.rawQuery(
-            """
-            SELECT c.nombre, h.hora_inicio, s.nombre_sala
-            FROM reserva r
-            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
-            INNER JOIN clase c ON c.id_clase = h.id_clase
-            INNER JOIN sala s ON s.id_sala = h.id_sala
-            WHERE r.id_usuario = ?
-              AND r.estado IN ('reservada', 'completada')
-            ORDER BY h.fecha ASC, h.hora_inicio ASC
-            LIMIT 3
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(
-                        TodayClassItem(
-                            className = cursor.getString(0),
-                            startTime = cursor.getString(1),
-                            roomName = cursor.getString(2)
-                        )
-                    )
-                }
+            val todayClasses = reservations.mapNotNull { row ->
+                getTodayClassItem(row.optInt("id_horario", -1))
             }
+
+            HomeData(
+                userName = userName,
+                calories = calories,
+                trainingHours = String.format(Locale.getDefault(), "%.1f h", totalMinutes.toDouble() / 60.0),
+                todayClasses = todayClasses,
+                streakDays = calculateCurrentStreakDays(userId)
+            )
+        }.getOrElse {
+            HomeData("Usuario", 0, "0.0 h", emptyList(), 0)
         }
-
-        val hours = totalMinutes.toDouble() / 60.0
-        val streakDays = calculateCurrentStreakDays(userId)
-
-        return HomeData(
-            userName = userName,
-            calories = calories,
-            trainingHours = String.format(Locale.getDefault(), "%.1f h", hours),
-            todayClasses = todayClasses,
-            streakDays = streakDays
-        )
     }
 
     fun getAnalysisData(userId: Int): AnalysisData {
-        val db = dbHelper.readableDatabase
-        val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        return runCatching {
+            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val activities = getRows(
+                "actividad_usuario",
+                mapOf("id_usuario" to eq(userId)),
+                "fecha,duracion_minutos",
+                orderBy = "fecha",
+                ascending = true
+            )
 
-        val activityRows = db.rawQuery(
-            """
-            SELECT fecha, COALESCE(SUM(duracion_minutos), 0)
-            FROM actividad_usuario
-            WHERE id_usuario = ?
-            GROUP BY fecha
-            ORDER BY fecha ASC
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    val date = dateFormatter.parse(cursor.getString(0)) ?: continue
-                    val minutes = cursor.getInt(1)
-                    add(date to minutes)
+            val groupedByDate = activities.groupBy { it.optString("fecha") }
+                .mapValues { (_, rows) -> rows.sumOf { it.optInt("duracion_minutos", 0) } }
+                .toSortedMap()
+
+            val dates = groupedByDate.keys.mapNotNull { formatter.parse(it) }
+            val streakDays = calculateCurrentStreak(dates, formatter)
+            val latestDate = dates.lastOrNull() ?: Date()
+
+            val weeklyHours = (0..6).map { offset ->
+                val cal = Calendar.getInstance().apply {
+                    time = latestDate
+                    add(Calendar.DAY_OF_YEAR, offset - 6)
                 }
+                val key = formatter.format(cal.time)
+                (groupedByDate[key] ?: 0) / 60.0
             }
-        }
 
-        val streakDays = calculateCurrentStreak(activityRows.map { it.first }, dateFormatter)
+            val cal = Calendar.getInstance().apply { time = latestDate }
+            val week = cal.get(Calendar.WEEK_OF_YEAR)
+            val year = cal.get(Calendar.YEAR)
 
-        val latestDate = activityRows.lastOrNull()?.first ?: Date()
-        val weeklyHours = (0..6).map { offset ->
-            val calendar = Calendar.getInstance().apply {
-                time = latestDate
-                add(Calendar.DAY_OF_YEAR, offset - 6)
-            }
-            val day = dateFormatter.format(calendar.time)
-            val minutes = activityRows.firstOrNull { dateFormatter.format(it.first) == day }?.second ?: 0
-            minutes / 60.0
-        }
+            val goal = getSingleRow(
+                "objetivo_semanal",
+                mapOf("id_usuario" to eq(userId), "semana" to eq(week), "anio" to eq(year)),
+                "horas_objetivo"
+            )?.optDouble("horas_objetivo", 8.0) ?: 8.0
 
-        val weeklyCompletedHours = weeklyHours.sum()
-
-        val calendar = Calendar.getInstance().apply { time = latestDate }
-        val currentWeek = calendar.get(Calendar.WEEK_OF_YEAR)
-        val currentYear = calendar.get(Calendar.YEAR)
-
-        val weeklyGoalHours = db.rawQuery(
-            """
-            SELECT horas_objetivo
-            FROM objetivo_semanal
-            WHERE id_usuario = ? AND semana = ? AND anio = ?
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(userId.toString(), currentWeek.toString(), currentYear.toString())
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getDouble(0) else 8.0
-        }
-
-        return AnalysisData(
-            streakDays = streakDays,
-            weeklyGoalHours = weeklyGoalHours,
-            weeklyCompletedHours = weeklyCompletedHours,
-            weeklyActivityHours = weeklyHours
-        )
+            AnalysisData(streakDays, goal, weeklyHours.sum(), weeklyHours)
+        }.getOrElse { AnalysisData(0, 8.0, 0.0, List(7) { 0.0 }) }
     }
 
     fun getProfileData(userId: Int): ProfileData {
-        val db = dbHelper.readableDatabase
-
-        return db.rawQuery(
-            """
-            SELECT
-                u.nombre || ' ' || u.apellidos AS full_name,
-                COALESCE(u.fotoPerfil, ''),
-                u.email,
-                COALESCE(t.telefono, ''),
-                COALESCE(c.edad, 0),
-                COALESCE(c.peso, 0),
-                COALESCE(c.altura, 0),
-                COALESCE(cfg.notificaciones, 1),
-                COALESCE(cfg.idioma, 'ES')
-            FROM usuario u
-            LEFT JOIN cliente c ON c.id_usuario = u.id_usuario
-            LEFT JOIN telefono_usuario t ON t.id_usuario = u.id_usuario
-            LEFT JOIN configuracion_usuario cfg ON cfg.id_usuario = u.id_usuario
-            WHERE u.id_usuario = ?
-            ORDER BY t.id_telefono ASC
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) {
-                return@use ProfileData(
-                    fullName = "Usuario",
-                    profilePhoto = "",
-                    email = "",
-                    phone = "",
-                    age = 0,
-                    weightKg = 0.0,
-                    heightCm = 0.0,
-                    notificationsEnabled = true,
-                    language = "ES"
-                )
-            }
+        return runCatching {
+            val user = getSingleRow("usuario", mapOf("id_usuario" to eq(userId)))
+            val client = getSingleRow("cliente", mapOf("id_usuario" to eq(userId)))
+            val phone = getSingleRow("telefono_usuario", mapOf("id_usuario" to eq(userId)), orderBy = "id_telefono")
+            val cfg = getSingleRow("configuracion_usuario", mapOf("id_usuario" to eq(userId)))
 
             ProfileData(
-                fullName = cursor.getString(0),
-                profilePhoto = cursor.getString(1),
-                email = cursor.getString(2),
-                phone = cursor.getString(3),
-                age = cursor.getInt(4),
-                weightKg = cursor.getDouble(5),
-                heightCm = cursor.getDouble(6),
-                notificationsEnabled = cursor.getInt(7) == 1,
-                language = cursor.getString(8)
+                fullName = listOf(user?.optString("nombre"), user?.optString("apellidos")).joinToString(" ").trim().ifBlank { "Usuario" },
+                profilePhoto = user?.optString("fotoPerfil").orEmpty(),
+                email = user?.optString("email").orEmpty(),
+                phone = phone?.optString("telefono").orEmpty(),
+                age = client?.optInt("edad", 0) ?: 0,
+                weightKg = client?.optDouble("peso", 0.0) ?: 0.0,
+                heightCm = client?.optDouble("altura", 0.0) ?: 0.0,
+                notificationsEnabled = cfg?.optBoolean("notificaciones", true) ?: true,
+                language = cfg?.optString("idioma").orEmpty().ifBlank { "ES" }
             )
+        }.getOrElse {
+            ProfileData("Usuario", "", "", "", 0, 0.0, 0.0, true, "ES")
         }
     }
 
     fun updatePassword(userId: Int, currentPassword: String, newPassword: String): ActionResult {
-        if (currentPassword.isBlank() || newPassword.isBlank()) {
-            return ActionResult.Error("Completa ambos campos de contraseña")
-        }
-        if (newPassword.length < 6) {
-            return ActionResult.Error("La nueva contraseña debe tener al menos 6 caracteres")
-        }
+        if (currentPassword.isBlank() || newPassword.isBlank()) return ActionResult.Error("Completa ambos campos de password")
+        if (newPassword.length < 6) return ActionResult.Error("La nueva password debe tener al menos 6 caracteres")
 
-        val db = dbHelper.writableDatabase
-        return try {
-            db.beginTransaction()
+        return runCatching {
+            val user = getSingleRow("usuario", mapOf("id_usuario" to eq(userId)), "password")
+                ?: return ActionResult.Error("Usuario no encontrado")
+            if (user.optString("password") != currentPassword) return ActionResult.Error("La password actual no es correcta")
 
-            val storedPassword = db.rawQuery(
-                "SELECT contraseña FROM usuario WHERE id_usuario = ? LIMIT 1",
-                arrayOf(userId.toString())
-            ).use { cursor ->
-                if (!cursor.moveToFirst()) return ActionResult.Error("Usuario no encontrado")
-                cursor.getString(0)
-            }
-
-            if (storedPassword != currentPassword) {
-                return ActionResult.Error("La contraseña actual no es correcta")
-            }
-
-            db.update(
-                "usuario",
-                ContentValues().apply { put("contraseña", newPassword) },
-                "id_usuario = ?",
-                arrayOf(userId.toString())
-            )
-
-            db.setTransactionSuccessful()
-            ActionResult.Success("Contraseña actualizada correctamente")
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudo actualizar la contraseña")
-        } finally {
-            if (db.inTransaction()) db.endTransaction()
-        }
+            api.update("usuario", mapOf("id_usuario" to eq(userId)), JSONObject().put("password", newPassword))
+            ActionResult.Success("password actualizada correctamente")
+        }.getOrElse { ActionResult.Error("No se pudo actualizar la password") }
     }
 
     fun getReservationDetail(userId: Int): ReservationDetailData? {
-        val db = dbHelper.readableDatabase
+        val reservation = getRows(
+            "reserva",
+            mapOf("id_usuario" to eq(userId), "estado" to inList("reservada", "completada")),
+            "id_horario",
+            orderBy = "fecha_reserva",
+            ascending = true,
+            limit = 1
+        ).firstOrNull() ?: return null
 
-        return db.rawQuery(
-            """
-            SELECT
-                c.nombre,
-                c.descripcion,
-                h.fecha,
-                h.hora_inicio,
-                u.nombre || ' ' || u.apellidos AS instructor,
-                s.nombre_sala,
-                h.plazas_totales,
-                COALESCE(SUM(CASE WHEN r2.estado = 'reservada' THEN 1 ELSE 0 END), 0) AS ocupadas
-            FROM reserva r
-            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
-            INNER JOIN clase c ON c.id_clase = h.id_clase
-            INNER JOIN sala s ON s.id_sala = h.id_sala
-            INNER JOIN monitor m ON m.id_usuario = h.id_monitor
-            INNER JOIN usuario u ON u.id_usuario = m.id_usuario
-            LEFT JOIN reserva r2 ON r2.id_horario = h.id_horario
-            WHERE r.id_usuario = ?
-              AND r.estado IN ('reservada', 'completada')
-            GROUP BY h.id_horario
-            ORDER BY h.fecha ASC, h.hora_inicio ASC
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-
-            ReservationDetailData(
-                className = cursor.getString(0),
-                classDescription = cursor.getString(1) ?: "Sin descripción",
-                date = cursor.getString(2),
-                startTime = cursor.getString(3),
-                instructorName = cursor.getString(4),
-                roomName = cursor.getString(5),
-                totalSlots = cursor.getInt(6),
-                occupiedSlots = cursor.getInt(7)
-            )
-        }
+        return getReservationDetailForSchedule(reservation.optInt("id_horario", -1))
     }
 
     fun getReservationDetailForSchedule(scheduleId: Int): ReservationDetailData? {
-        val db = dbHelper.readableDatabase
-
-        return db.rawQuery(
-            """
-            SELECT
-                c.nombre,
-                c.descripcion,
-                h.fecha,
-                h.hora_inicio,
-                u.nombre || ' ' || u.apellidos AS instructor,
-                s.nombre_sala,
-                h.plazas_totales,
-                COALESCE(SUM(CASE WHEN r.estado = 'reservada' THEN 1 ELSE 0 END), 0) AS ocupadas
-            FROM horario_clase h
-            INNER JOIN clase c ON c.id_clase = h.id_clase
-            INNER JOIN sala s ON s.id_sala = h.id_sala
-            INNER JOIN monitor m ON m.id_usuario = h.id_monitor
-            INNER JOIN usuario u ON u.id_usuario = m.id_usuario
-            LEFT JOIN reserva r ON r.id_horario = h.id_horario
-            WHERE h.id_horario = ?
-            GROUP BY h.id_horario
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(scheduleId.toString())
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
+        return runCatching {
+            if (scheduleId <= 0) return null
+            val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId))) ?: return null
+            val classRow = getSingleRow("clase", mapOf("id_clase" to eq(schedule.optInt("id_clase"))))
+            val room = getSingleRow("sala", mapOf("id_sala" to eq(schedule.optInt("id_sala"))))
+            val monitorUser = getSingleRow("usuario", mapOf("id_usuario" to eq(schedule.optInt("id_monitor"))))
+            val occupied = getRows("reserva", mapOf("id_horario" to eq(scheduleId), "estado" to eq("reservada")), "id_reserva").size
 
             ReservationDetailData(
-                className = cursor.getString(0),
-                classDescription = cursor.getString(1) ?: "Sin descripción",
-                date = cursor.getString(2),
-                startTime = cursor.getString(3),
-                instructorName = cursor.getString(4),
-                roomName = cursor.getString(5),
-                totalSlots = cursor.getInt(6),
-                occupiedSlots = cursor.getInt(7)
+                className = classRow?.optString("nombre").orEmpty(),
+                classDescription = classRow?.optString("descripcion").orEmpty().ifBlank { "Sin descripción" },
+                date = schedule.optString("fecha"),
+                startTime = schedule.optString("hora_inicio"),
+                instructorName = listOf(monitorUser?.optString("nombre"), monitorUser?.optString("apellidos")).joinToString(" ").trim(),
+                roomName = room?.optString("nombre_sala").orEmpty(),
+                totalSlots = schedule.optInt("plazas_totales", 0),
+                occupiedSlots = occupied
             )
-        }
+        }.getOrNull()
     }
 
     fun reserveClass(userId: Int, scheduleId: Int): ActionResult {
-        val db = dbHelper.writableDatabase
+        return runCatching {
+            val existing = getRows(
+                "reserva",
+                mapOf("id_usuario" to eq(userId), "id_horario" to eq(scheduleId), "estado" to neq("cancelada")),
+                "id_reserva",
+                limit = 1
+            )
+            if (existing.isNotEmpty()) return ActionResult.Error("Ya tienes una reserva para esta clase")
 
-        val alreadyReserved = db.rawQuery(
-            "SELECT 1 FROM reserva WHERE id_usuario = ? AND id_horario = ? AND estado != 'cancelada' LIMIT 1",
-            arrayOf(userId.toString(), scheduleId.toString())
-        ).use { it.moveToFirst() }
+            val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId)), "plazas_totales")
+                ?: return ActionResult.Error("Horario no encontrado")
+            val occupied = getRows("reserva", mapOf("id_horario" to eq(scheduleId), "estado" to eq("reservada")), "id_reserva").size
+            if (occupied >= schedule.optInt("plazas_totales", 0)) return ActionResult.Error("No hay plazas disponibles")
 
-        if (alreadyReserved) {
-            return ActionResult.Error("Ya tienes una reserva para esta clase")
-        }
-
-        val capacityRow = db.rawQuery(
-            """
-            SELECT h.plazas_totales, COALESCE(SUM(CASE WHEN r.estado = 'reservada' THEN 1 ELSE 0 END), 0)
-            FROM horario_clase h
-            LEFT JOIN reserva r ON r.id_horario = h.id_horario
-            WHERE h.id_horario = ?
-            GROUP BY h.id_horario
-            """.trimIndent(),
-            arrayOf(scheduleId.toString())
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getInt(0) to cursor.getInt(1) else null
-        } ?: return ActionResult.Error("Horario no encontrado")
-
-        if (capacityRow.second >= capacityRow.first) {
-            return ActionResult.Error("No hay plazas disponibles")
-        }
-
-        val values = ContentValues().apply {
-            put("id_usuario", userId)
-            put("id_horario", scheduleId)
-            put("estado", "reservada")
-            put("fecha_reserva", currentDateIso())
-        }
-
-        return try {
-            db.insertOrThrow("reserva", null, values)
+            api.insert(
+                "reserva",
+                JSONObject()
+                    .put("id_usuario", userId)
+                    .put("id_horario", scheduleId)
+                    .put("estado", "reservada")
+                    .put("fecha_reserva", currentDateIso())
+            )
             ActionResult.Success("¡Reserva confirmada!")
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudo completar la reserva")
-        }
+        }.getOrElse { ActionResult.Error("No se pudo completar la reserva") }
     }
 
     fun registerWorkout(userId: Int, minutes: Int): ActionResult {
         if (minutes <= 0) return ActionResult.Error("Introduce una duración válida")
-
-        val values = ContentValues().apply {
-            put("id_usuario", userId)
-            put("fecha", currentDateIso())
-            put("duracion_minutos", minutes)
-        }
-
-        return try {
-            dbHelper.writableDatabase.insertOrThrow("actividad_usuario", null, values)
+        return runCatching {
+            api.insert(
+                "actividad_usuario",
+                JSONObject()
+                    .put("id_usuario", userId)
+                    .put("fecha", currentDateIso())
+                    .put("duracion_minutos", minutes)
+            )
             ActionResult.Success("Entrenamiento registrado")
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudo registrar el entrenamiento")
-        }
+        }.getOrElse { ActionResult.Error("No se pudo registrar el entrenamiento") }
     }
 
     fun getUserReservations(userId: Int): List<UserReservationItem> {
-        val db = dbHelper.readableDatabase
-        return db.rawQuery(
-            """
-            SELECT c.nombre, h.fecha, h.hora_inicio, r.estado
-            FROM reserva r
-            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
-            INNER JOIN clase c ON c.id_clase = h.id_clase
-            WHERE r.id_usuario = ?
-            ORDER BY h.fecha DESC, h.hora_inicio DESC
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(
-                        UserReservationItem(
-                            className = cursor.getString(0),
-                            date = cursor.getString(1),
-                            time = cursor.getString(2),
-                            state = cursor.getString(3)
-                        )
+        return runCatching {
+            getRows("reserva", mapOf("id_usuario" to eq(userId)), orderBy = "fecha_reserva", ascending = false)
+                .mapNotNull { row ->
+                    val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(row.optInt("id_horario")))) ?: return@mapNotNull null
+                    val classRow = getSingleRow("clase", mapOf("id_clase" to eq(schedule.optInt("id_clase"))), "nombre")
+                    UserReservationItem(
+                        className = classRow?.optString("nombre").orEmpty(),
+                        date = schedule.optString("fecha"),
+                        time = schedule.optString("hora_inicio"),
+                        state = row.optString("estado")
                     )
                 }
-            }
-        }
+        }.getOrDefault(emptyList())
     }
 
     fun getWorkoutHistory(userId: Int): List<WorkoutHistoryItem> {
-        val db = dbHelper.readableDatabase
-        return db.rawQuery(
-            """
-            SELECT fecha, duracion_minutos
-            FROM actividad_usuario
-            WHERE id_usuario = ?
-            ORDER BY fecha DESC
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(WorkoutHistoryItem(date = cursor.getString(0), durationMinutes = cursor.getInt(1)))
-                }
+        return runCatching {
+            getRows(
+                "actividad_usuario",
+                mapOf("id_usuario" to eq(userId)),
+                "fecha,duracion_minutos",
+                orderBy = "fecha",
+                ascending = false
+            ).map {
+                WorkoutHistoryItem(it.optString("fecha"), it.optInt("duracion_minutos", 0))
             }
-        }
+        }.getOrDefault(emptyList())
     }
 
     fun getCurrentSubscription(userId: Int): SubscriptionStatus? {
-        val db = dbHelper.readableDatabase
-        return db.rawQuery(
-            """
-            SELECT tipo, COALESCE(fecha_fin, ''), COALESCE(estado, '')
-            FROM suscripcion
-            WHERE id_usuario = ?
-            ORDER BY COALESCE(fecha_fin, fecha_inicio) DESC
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
+        return runCatching {
+            val row = getSingleRow(
+                "suscripcion",
+                mapOf("id_usuario" to eq(userId)),
+                "tipo,fecha_fin,fecha_inicio,estado",
+                orderBy = "fecha_inicio",
+                ascending = false
+            ) ?: return null
+
             SubscriptionStatus(
-                type = cursor.getString(0),
-                endDate = cursor.getString(1),
-                status = cursor.getString(2)
+                type = row.optString("tipo"),
+                endDate = row.optString("fecha_fin"),
+                status = row.optString("estado")
             )
-        }
+        }.getOrNull()
     }
 
     fun getNotifications(userId: Int): List<AppNotification> {
@@ -478,40 +275,34 @@ class FitGymRepository(context: Context) {
                 notifications += AppNotification(
                     id = "subscription",
                     title = "Suscripción",
-                    description = if (daysLeft >= 0) {
-                        "Tu plan ${subscription.type} vence en $daysLeft días"
-                    } else {
-                        "Tu suscripción ${subscription.type} está vencida"
-                    },
+                    description = if (daysLeft >= 0) "Tu plan ${subscription.type} vence en $daysLeft días" else "Tu suscripción ${subscription.type} está vencida",
                     timestamp = "Hoy",
                     read = daysLeft > 7
                 )
             }
         }
 
-        val nextClass = dbHelper.readableDatabase.rawQuery(
-            """
-            SELECT c.nombre, h.fecha, h.hora_inicio
-            FROM reserva r
-            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
-            INNER JOIN clase c ON c.id_clase = h.id_clase
-            WHERE r.id_usuario = ? AND r.estado = 'reservada'
-            ORDER BY h.fecha ASC, h.hora_inicio ASC
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) null else Triple(cursor.getString(0), cursor.getString(1), cursor.getString(2))
-        }
+        val nextClass = getRows(
+            "reserva",
+            mapOf("id_usuario" to eq(userId), "estado" to eq("reservada")),
+            "id_horario",
+            orderBy = "fecha_reserva",
+            ascending = true,
+            limit = 1
+        ).firstOrNull()
 
-        if (nextClass != null) {
-            notifications += AppNotification(
-                id = "next-class",
-                title = "Clase reservada",
-                description = "${nextClass.first} el ${nextClass.second} a las ${nextClass.third}",
-                timestamp = "Programada",
-                read = false
-            )
+        nextClass?.optInt("id_horario")?.let { scheduleId ->
+            val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId)))
+            val classRow = schedule?.let { getSingleRow("clase", mapOf("id_clase" to eq(it.optInt("id_clase"))), "nombre") }
+            if (schedule != null && classRow != null) {
+                notifications += AppNotification(
+                    id = "next-class",
+                    title = "Clase reservada",
+                    description = "${classRow.optString("nombre")} el ${schedule.optString("fecha")} a las ${schedule.optString("hora_inicio")}",
+                    timestamp = "Programada",
+                    read = false
+                )
+            }
         }
 
         val workoutsThisWeek = getWorkoutHistory(userId).take(7).sumOf { it.durationMinutes }
@@ -526,9 +317,6 @@ class FitGymRepository(context: Context) {
         return notifications
     }
 
-    private fun currentDateIso(): String =
-        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-
     fun updateProfileData(
         userId: Int,
         email: String,
@@ -538,423 +326,265 @@ class FitGymRepository(context: Context) {
         heightCm: Double
     ): ActionResult {
         val normalizedEmail = email.trim()
-        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
-            return ActionResult.Error("Email no válido")
-        }
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) return ActionResult.Error("Email no válido")
 
-        val db = dbHelper.writableDatabase
-        db.beginTransaction()
+        return runCatching {
+            val inUse = getRows(
+                "usuario",
+                mapOf("email" to "eq.$normalizedEmail", "id_usuario" to neq(userId)),
+                "id_usuario",
+                limit = 1
+            )
+            if (inUse.isNotEmpty()) return ActionResult.Error("Ese email ya está en uso")
 
-        return try {
-            val emailInUse = db.rawQuery(
-                "SELECT 1 FROM usuario WHERE lower(email)=lower(?) AND id_usuario != ? LIMIT 1",
-                arrayOf(normalizedEmail, userId.toString())
-            ).use { it.moveToFirst() }
+            api.update("usuario", mapOf("id_usuario" to eq(userId)), JSONObject().put("email", normalizedEmail))
+            api.update(
+                "cliente",
+                mapOf("id_usuario" to eq(userId)),
+                JSONObject().put("edad", age).put("peso", weightKg).put("altura", heightCm)
+            )
 
-            if (emailInUse) {
-                ActionResult.Error("Ese email ya está en uso")
-            } else {
-                db.update("usuario", ContentValues().apply { put("email", normalizedEmail) }, "id_usuario = ?", arrayOf(userId.toString()))
-                db.update("cliente", ContentValues().apply {
-                    put("edad", age)
-                    put("peso", weightKg)
-                    put("altura", heightCm)
-                }, "id_usuario = ?", arrayOf(userId.toString()))
-
-                db.delete("telefono_usuario", "id_usuario = ?", arrayOf(userId.toString()))
-                if (phone.isNotBlank()) {
-                    db.insertOrThrow("telefono_usuario", null, ContentValues().apply {
-                        put("id_usuario", userId)
-                        put("telefono", phone.trim())
-                    })
-                }
-
-                db.setTransactionSuccessful()
-                ActionResult.Success("Perfil actualizado")
+            api.delete("telefono_usuario", mapOf("id_usuario" to eq(userId)))
+            if (phone.isNotBlank()) {
+                api.insert("telefono_usuario", JSONObject().put("id_usuario", userId).put("telefono", phone.trim()))
             }
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudo actualizar el perfil")
-        } finally {
-            db.endTransaction()
-        }
+
+            ActionResult.Success("Perfil actualizado")
+        }.getOrElse { ActionResult.Error("No se pudo actualizar el perfil") }
     }
 
     fun updateProfileLanguage(userId: Int, languageCode: String): ActionResult {
         val normalizedCode = languageCode.trim().uppercase(Locale.ROOT)
-        val supportedLanguages = setOf("ES", "EN", "DE", "PT")
-        if (normalizedCode !in supportedLanguages) {
-            return ActionResult.Error("Idioma no soportado")
-        }
+        if (normalizedCode !in setOf("ES", "EN", "DE", "PT")) return ActionResult.Error("Idioma no soportado")
 
-        val db = dbHelper.writableDatabase
-        return try {
-            db.beginTransaction()
-
-            val exists = db.rawQuery(
-                "SELECT 1 FROM configuracion_usuario WHERE id_usuario = ? LIMIT 1",
-                arrayOf(userId.toString())
-            ).use { it.moveToFirst() }
-
-            val values = ContentValues().apply { put("idioma", normalizedCode) }
-            if (exists) {
-                db.update("configuracion_usuario", values, "id_usuario = ?", arrayOf(userId.toString()))
+        return runCatching {
+            val exists = getSingleRow("configuracion_usuario", mapOf("id_usuario" to eq(userId)), "id_configuracion")
+            if (exists != null) {
+                api.update("configuracion_usuario", mapOf("id_usuario" to eq(userId)), JSONObject().put("idioma", normalizedCode))
             } else {
-                values.put("id_usuario", userId)
-                values.put("notificaciones", 1)
-                db.insertOrThrow("configuracion_usuario", null, values)
+                api.insert(
+                    "configuracion_usuario",
+                    JSONObject().put("id_usuario", userId).put("idioma", normalizedCode).put("notificaciones", true)
+                )
             }
-
-            db.setTransactionSuccessful()
             ActionResult.Success("Idioma actualizado")
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudo actualizar el idioma")
-        } finally {
-            db.endTransaction()
-        }
+        }.getOrElse { ActionResult.Error("No se pudo actualizar el idioma") }
     }
 
     fun updateProfilePhoto(userId: Int, avatarKey: String): ActionResult {
-        val allowedAvatars = setOf("avatar_fire", "avatar_ocean", "avatar_forest", "avatar_midnight")
-        if (avatarKey !in allowedAvatars) {
+        if (avatarKey !in setOf("avatar_fire", "avatar_ocean", "avatar_forest", "avatar_midnight")) {
             return ActionResult.Error("Avatar no válido")
         }
 
-        val db = dbHelper.writableDatabase
-        return try {
-            val rowsUpdated = db.update(
+        return runCatching {
+            val updated = api.update(
                 "usuario",
-                ContentValues().apply { put("fotoPerfil", avatarKey) },
-                "id_usuario = ?",
-                arrayOf(userId.toString())
+                mapOf("id_usuario" to eq(userId)),
+                JSONObject().put("fotoPerfil", avatarKey)
             )
-
-            if (rowsUpdated > 0) {
-                ActionResult.Success("Foto de perfil actualizada")
-            } else {
-                ActionResult.Error("No se encontró el usuario")
-            }
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudo actualizar la foto")
-        }
+            if (updated.length() > 0) ActionResult.Success("Foto de perfil actualizada")
+            else ActionResult.Error("No se encontró el usuario")
+        }.getOrElse { ActionResult.Error("No se pudo actualizar la foto") }
     }
 
     fun updateProfileNotifications(userId: Int, enabled: Boolean): ActionResult {
-        val db = dbHelper.writableDatabase
-        return try {
-            db.beginTransaction()
-
-            val exists = db.rawQuery(
-                "SELECT 1 FROM configuracion_usuario WHERE id_usuario = ? LIMIT 1",
-                arrayOf(userId.toString())
-            ).use { it.moveToFirst() }
-
-            val values = ContentValues().apply { put("notificaciones", if (enabled) 1 else 0) }
-            if (exists) {
-                db.update("configuracion_usuario", values, "id_usuario = ?", arrayOf(userId.toString()))
+        return runCatching {
+            val exists = getSingleRow("configuracion_usuario", mapOf("id_usuario" to eq(userId)), "id_configuracion")
+            if (exists != null) {
+                api.update("configuracion_usuario", mapOf("id_usuario" to eq(userId)), JSONObject().put("notificaciones", enabled))
             } else {
-                values.put("id_usuario", userId)
-                values.put("idioma", "ES")
-                db.insertOrThrow("configuracion_usuario", null, values)
+                api.insert(
+                    "configuracion_usuario",
+                    JSONObject().put("id_usuario", userId).put("idioma", "ES").put("notificaciones", enabled)
+                )
             }
-
-            db.setTransactionSuccessful()
             ActionResult.Success("Preferencias de notificaciones actualizadas")
-        } catch (_: Exception) {
-            ActionResult.Error("No se pudieron actualizar las notificaciones")
-        } finally {
-            db.endTransaction()
-        }
+        }.getOrElse { ActionResult.Error("No se pudieron actualizar las notificaciones") }
     }
 
     fun getUpcomingClassReminder(userId: Int): PushReminder? {
-        val db = dbHelper.readableDatabase
-        val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
         val now = Date()
 
-        val nextClass = db.rawQuery(
-            """
-            SELECT h.id_horario, c.nombre, h.fecha, h.hora_inicio
-            FROM reserva r
-            INNER JOIN horario_clase h ON h.id_horario = r.id_horario
-            INNER JOIN clase c ON c.id_clase = h.id_clase
-            WHERE r.id_usuario = ? AND r.estado = 'reservada'
-            ORDER BY h.fecha ASC, h.hora_inicio ASC
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) return null
-            val scheduleId = cursor.getInt(0)
-            val className = cursor.getString(1)
-            val date = cursor.getString(2)
-            val time = cursor.getString(3)
-            Quadruple(scheduleId, className, date, time)
-        }
+        val next = getRows(
+            "reserva",
+            mapOf("id_usuario" to eq(userId), "estado" to eq("reservada")),
+            "id_horario",
+            orderBy = "fecha_reserva",
+            ascending = true,
+            limit = 1
+        ).firstOrNull() ?: return null
 
-        val dateTime = dateFormatter.parse("${nextClass.third} ${nextClass.fourth}") ?: return null
-        val diffMs = dateTime.time - now.time
-        val hoursUntilClass = TimeUnit.MILLISECONDS.toHours(diffMs)
+        val scheduleId = next.optInt("id_horario", -1)
+        val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId))) ?: return null
+        val classRow = getSingleRow("clase", mapOf("id_clase" to eq(schedule.optInt("id_clase"))), "nombre") ?: return null
 
+        val dateTime = formatter.parse("${schedule.optString("fecha")} ${schedule.optString("hora_inicio")}") ?: return null
+        val hoursUntilClass = TimeUnit.MILLISECONDS.toHours(dateTime.time - now.time)
         if (hoursUntilClass !in 0..24) return null
 
         return PushReminder(
-            uniqueId = "${nextClass.first}-${nextClass.third}-${nextClass.fourth}",
+            uniqueId = "$scheduleId-${schedule.optString("fecha")}-${schedule.optString("hora_inicio")}",
             title = "Recordatorio de clase",
-            message = "Te esperamos en ${nextClass.second} hoy a las ${nextClass.fourth}"
+            message = "Te esperamos en ${classRow.optString("nombre")} hoy a las ${schedule.optString("hora_inicio")}"
         )
     }
 
-    private data class Quadruple<A, B, C, D>(
-        val first: A,
-        val second: B,
-        val third: C,
-        val fourth: D
-    )
     fun getClassesByWeekDay(dayFilter: String): List<ClassWithSchedules> {
-        val db = dbHelper.readableDatabase
-        val query =
-            """
-            SELECT
-                c.id_clase,
-                c.nombre,
-                c.descripcion,
-                h.id_horario,
-                h.hora_inicio,
-                h.fecha,
-                h.plazas_totales,
-                COALESCE(SUM(CASE WHEN r.estado = 'reservada' THEN 1 ELSE 0 END), 0) AS plazas_ocupadas,
-                u.nombre || ' ' || u.apellidos AS instructor
-            FROM clase c
-            INNER JOIN horario_clase h ON h.id_clase = c.id_clase
-            INNER JOIN monitor m ON m.id_usuario = h.id_monitor
-            INNER JOIN usuario u ON u.id_usuario = m.id_usuario
-            LEFT JOIN reserva r ON r.id_horario = h.id_horario
-            WHERE (? = 'Todos' OR strftime('%w', h.fecha) = ?)
-            GROUP BY h.id_horario
-            ORDER BY c.nombre ASC, h.fecha ASC, h.hora_inicio ASC
-            """.trimIndent()
+        return runCatching {
+            val schedules = getRows("horario_clase", orderBy = "fecha", ascending = true)
+            val filtered = schedules.filter { row -> dayFilter == "Todos" || sqlDateToWeekDay(row.optString("fecha")) == dayFilter }
 
-        val filterCode = weekDayToSqlCode(dayFilter)
-        val rows = db.rawQuery(query, arrayOf(dayFilter, filterCode)).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(
-                        RawScheduleRow(
-                            classId = cursor.getInt(0),
-                            className = cursor.getString(1),
-                            description = cursor.getString(2) ?: "",
-                            scheduleId = cursor.getInt(3),
-                            startTime = cursor.getString(4),
-                            date = cursor.getString(5),
-                            totalSlots = cursor.getInt(6),
-                            occupiedSlots = cursor.getInt(7),
-                            instructorName = cursor.getString(8)
-                        )
+            val grouped = filtered.groupBy { it.optInt("id_clase") }
+            grouped.mapNotNull { (classId, classSchedules) ->
+                val classRow = getSingleRow("clase", mapOf("id_clase" to eq(classId))) ?: return@mapNotNull null
+                val items = classSchedules.map { schedule ->
+                    val occupied = getRows(
+                        "reserva",
+                        mapOf("id_horario" to eq(schedule.optInt("id_horario")), "estado" to eq("reservada")),
+                        "id_reserva"
+                    ).size
+                    val monitorUser = getSingleRow("usuario", mapOf("id_usuario" to eq(schedule.optInt("id_monitor"))))
+                    ClassScheduleItem(
+                        scheduleId = schedule.optInt("id_horario"),
+                        time = schedule.optString("hora_inicio"),
+                        weekDay = sqlDateToWeekDay(schedule.optString("fecha")),
+                        occupiedSlots = occupied,
+                        totalSlots = schedule.optInt("plazas_totales"),
+                        instructorName = listOf(monitorUser?.optString("nombre"), monitorUser?.optString("apellidos")).joinToString(" ").trim()
                     )
                 }
-            }
-        }
 
-        return rows
-            .groupBy { it.classId }
-            .map { (_, classRows) ->
-                val first = classRows.first()
                 ClassWithSchedules(
-                    classId = first.classId,
-                    className = first.className,
-                    description = first.description,
-                    schedules = classRows.map { row ->
-                        ClassScheduleItem(
-                            scheduleId = row.scheduleId,
-                            time = row.startTime,
-                            weekDay = sqlDateToWeekDay(row.date),
-                            occupiedSlots = row.occupiedSlots,
-                            totalSlots = row.totalSlots,
-                            instructorName = row.instructorName
-                        )
-                    }
+                    classId = classId,
+                    className = classRow.optString("nombre"),
+                    description = classRow.optString("descripcion"),
+                    schedules = items
                 )
-            }
+            }.sortedBy { it.className }
+        }.getOrDefault(emptyList())
     }
 
     fun login(email: String, password: String): LoginResult {
         val normalizedEmail = email.trim()
-        if (normalizedEmail.isBlank() || password.isBlank()) {
-            return LoginResult.Error("Introduce email y contraseña")
-        }
+        if (normalizedEmail.isBlank() || password.isBlank()) return LoginResult.Error("Introduce email y password")
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) return LoginResult.Error("Formato de email no válido")
 
-        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
-            return LoginResult.Error("Formato de email no válido")
-        }
-
-        val loginRow = try {
-            val db = dbHelper.readableDatabase
-            db.rawQuery(
-                "SELECT id_usuario, nombre, contraseña FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
-                arrayOf(normalizedEmail)
-            ).use { cursor ->
-                if (cursor.moveToFirst()) {
-                    LoginRow(
-                        userId = cursor.getInt(0),
-                        userName = cursor.getString(1),
-                        storedPassword = cursor.getString(2)
-                    )
-                } else {
-                    null
-                }
+        return runCatching {
+            val user = getSingleRow("usuario", mapOf("email" to "eq.$normalizedEmail"), "id_usuario,nombre,password")
+            when {
+                user == null -> LoginResult.Error("No existe una cuenta con ese email")
+                user.optString("password") != password -> LoginResult.Error("password incorrecta")
+                else -> LoginResult.Success(user.optInt("id_usuario"), user.optString("nombre"))
             }
-        } catch (e: Exception) {
-            return LoginResult.Error("No se pudo acceder a la base de datos")
-        }
-
-        return when {
-            loginRow == null -> LoginResult.Error("No existe una cuenta con ese email")
-            loginRow.storedPassword != password -> LoginResult.Error("Contraseña incorrecta")
-            else -> LoginResult.Success(userId = loginRow.userId, userName = loginRow.userName)
-        }
+        }.getOrElse { LoginResult.Error("No se pudo acceder a la base de datos") }
     }
 
     fun register(nombreCompleto: String, email: String, telefono: String, password: String): RegisterResult {
-
         val normalizedEmail = email.trim()
         val fullName = nombreCompleto.trim().replace(Regex("\\s+"), " ")
 
         if (fullName.isBlank() || normalizedEmail.isBlank() || password.isBlank()) {
             return RegisterResult.Error("Completa todos los campos obligatorios")
         }
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) return RegisterResult.Error("Formato de email no válido")
+        if (password.length < 6) return RegisterResult.Error("La password debe tener al menos 6 caracteres")
 
-        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
-            return RegisterResult.Error("Formato de email no válido")
-        }
+        return runCatching {
+            val emailExists = getRows("usuario", mapOf("email" to "eq.$normalizedEmail"), "id_usuario", limit = 1)
+            if (emailExists.isNotEmpty()) return RegisterResult.Error("Ya existe una cuenta con ese email")
 
-        if (password.length < 6) {
-            return RegisterResult.Error("La contraseña debe tener al menos 6 caracteres")
-        }
+            val parts = fullName.split(" ", limit = 2)
+            val nombre = parts.first()
+            val apellidos = if (parts.size > 1) parts[1] else ""
 
-        val db = try {
-            dbHelper.writableDatabase
-        } catch (e: Exception) {
-            return RegisterResult.Error("No se pudo acceder a la base de datos")
-        }
+            val inserted = api.insert(
+                "usuario",
+                JSONObject()
+                    .put("nombre", nombre)
+                    .put("apellidos", apellidos)
+                    .put("email", normalizedEmail)
+                    .put("password", password)
+                    .put("fotoPerfil", "")
+            )
+            if (inserted.length() == 0) return RegisterResult.Error("No se pudo registrar el usuario")
 
-        val emailExists = try {
-            db.rawQuery(
-                "SELECT 1 FROM usuario WHERE lower(email) = lower(?) LIMIT 1",
-                arrayOf(normalizedEmail)
-            ).use { it.moveToFirst() }
-        } catch (e: Exception) {
-            return RegisterResult.Error("No se pudo acceder a la base de datos")
-        }
-
-        if (emailExists) {
-            return RegisterResult.Error("Ya existe una cuenta con ese email")
-        }
-
-        val nameParts = fullName.split(" ", limit = 2)
-        val nombre = nameParts.first()
-        val apellidos = if (nameParts.size > 1) nameParts[1] else ""
-
-        db.beginTransaction()
-        return try {
-            val userValues = ContentValues().apply {
-                put("nombre", nombre)
-                put("apellidos", apellidos)
-                put("email", normalizedEmail)
-                put("contraseña", password)
-                put("fotoPerfil", "")
-            }
-            val userId = db.insertOrThrow("usuario", null, userValues)
-
-            val clienteValues = ContentValues().apply {
-                put("id_usuario", userId)
-                put("edad", 0)
-                put("peso", 0.0)
-                put("altura", 0.0)
-            }
-            db.insertOrThrow("cliente", null, clienteValues)
-
+            val userId = inserted.getJSONObject(0).optInt("id_usuario")
+            api.insert(
+                "cliente",
+                JSONObject().put("id_usuario", userId).put("edad", 0).put("peso", 0.0).put("altura", 0.0)
+            )
             if (telefono.isNotBlank()) {
-                val telefonoValues = ContentValues().apply {
-                    put("id_usuario", userId)
-                    put("telefono", telefono.trim())
-                }
-                db.insertOrThrow("telefono_usuario", null, telefonoValues)
+                api.insert("telefono_usuario", JSONObject().put("id_usuario", userId).put("telefono", telefono.trim()))
             }
-
-            db.setTransactionSuccessful()
-            RegisterResult.Success(userId.toInt(), nombre)
-        } catch (e: Exception) {
-            RegisterResult.Error("No se pudo registrar el usuario")
-        } finally {
-            db.endTransaction()
-        }
+            RegisterResult.Success(userId, nombre)
+        }.getOrElse { RegisterResult.Error("No se pudo registrar el usuario") }
     }
 
-    private fun weekDayToSqlCode(day: String): String {
-        return when (day) {
-            "Domingo" -> "0"
-            "Lunes" -> "1"
-            "Martes" -> "2"
-            "Miércoles" -> "3"
-            "Jueves" -> "4"
-            "Viernes" -> "5"
-            "Sábado" -> "6"
-            else -> "-1"
-        }
+    private fun getTodayClassItem(scheduleId: Int): TodayClassItem? {
+        if (scheduleId <= 0) return null
+        val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId))) ?: return null
+        val classRow = getSingleRow("clase", mapOf("id_clase" to eq(schedule.optInt("id_clase"))), "nombre")
+        val room = getSingleRow("sala", mapOf("id_sala" to eq(schedule.optInt("id_sala"))), "nombre_sala")
+        return TodayClassItem(
+            className = classRow?.optString("nombre").orEmpty(),
+            startTime = schedule.optString("hora_inicio"),
+            roomName = room?.optString("nombre_sala").orEmpty()
+        )
     }
 
-    private fun sqlDateToWeekDay(date: String): String {
-        val parts = date.split("-")
-        if (parts.size != 3) return ""
+    private fun getRows(
+        table: String,
+        filters: Map<String, String> = emptyMap(),
+        select: String = "*",
+        orderBy: String? = null,
+        ascending: Boolean = true,
+        limit: Int? = null
+    ): List<JSONObject> {
+        return if (!api.isConfigured()) emptyList() else api.select(table, select, filters, orderBy, ascending, limit)
+            .let { array -> List(array.length()) { idx -> array.getJSONObject(idx) } }
+    }
 
-        val year = parts[0].toIntOrNull() ?: return ""
-        val month = parts[1].toIntOrNull() ?: return ""
-        val day = parts[2].toIntOrNull() ?: return ""
+    private fun getSingleRow(
+        table: String,
+        filters: Map<String, String>,
+        select: String = "*",
+        orderBy: String? = null,
+        ascending: Boolean = true
+    ): JSONObject? = getRows(table, filters, select, orderBy, ascending, limit = 1).firstOrNull()
 
-        val calendar = java.util.Calendar.getInstance().apply {
-            set(year, month - 1, day)
-        }
+    private fun currentDateIso(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
-        return when (calendar.get(java.util.Calendar.DAY_OF_WEEK)) {
-            java.util.Calendar.MONDAY -> "Lunes"
-            java.util.Calendar.TUESDAY -> "Martes"
-            java.util.Calendar.WEDNESDAY -> "Miércoles"
-            java.util.Calendar.THURSDAY -> "Jueves"
-            java.util.Calendar.FRIDAY -> "Viernes"
-            java.util.Calendar.SATURDAY -> "Sábado"
+    private fun weekDayFromDate(date: Date): String {
+        val calendar = Calendar.getInstance().apply { time = date }
+        return when (calendar.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> "Lunes"
+            Calendar.TUESDAY -> "Martes"
+            Calendar.WEDNESDAY -> "Miércoles"
+            Calendar.THURSDAY -> "Jueves"
+            Calendar.FRIDAY -> "Viernes"
+            Calendar.SATURDAY -> "Sábado"
             else -> "Domingo"
         }
     }
 
-    private data class RawScheduleRow(
-        val classId: Int,
-        val className: String,
-        val description: String,
-        val scheduleId: Int,
-        val startTime: String,
-        val date: String,
-        val totalSlots: Int,
-        val occupiedSlots: Int,
-        val instructorName: String
-    )
+    private fun sqlDateToWeekDay(date: String): String {
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val parsed = formatter.parse(date) ?: return ""
+        return weekDayFromDate(parsed)
+    }
 
     private fun calculateCurrentStreak(dates: List<Date>, formatter: SimpleDateFormat): Int {
         if (dates.isEmpty()) return 0
-
         val sorted = dates.distinct().sortedDescending()
         var streak = 1
 
         for (index in 1 until sorted.size) {
-            val expectedCalendar = Calendar.getInstance().apply {
+            val expected = Calendar.getInstance().apply {
                 time = sorted[index - 1]
                 add(Calendar.DAY_OF_YEAR, -1)
             }
-
-            if (formatter.format(sorted[index]) == formatter.format(expectedCalendar.time)) {
-                streak++
-            } else {
-                break
-            }
+            if (formatter.format(sorted[index]) == formatter.format(expected.time)) streak++ else break
         }
 
         return streak
@@ -962,24 +592,20 @@ class FitGymRepository(context: Context) {
 
     private fun calculateCurrentStreakDays(userId: Int): Int {
         val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        val dates = dbHelper.readableDatabase.rawQuery(
-            "SELECT DISTINCT fecha FROM actividad_usuario WHERE id_usuario = ? ORDER BY fecha DESC",
-            arrayOf(userId.toString())
-        ).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) {
-                    formatter.parse(cursor.getString(0))?.let { add(it) }
-                }
-            }
-        }
+        val dates = getRows(
+            "actividad_usuario",
+            mapOf("id_usuario" to eq(userId)),
+            select = "fecha",
+            orderBy = "fecha",
+            ascending = false
+        ).mapNotNull { formatter.parse(it.optString("fecha")) }
+
         return calculateCurrentStreak(dates, formatter)
     }
 
-    private data class LoginRow(
-        val userId: Int,
-        val userName: String,
-        val storedPassword: String
-    )
+    private fun eq(value: Any): String = "eq.$value"
+    private fun neq(value: Any): String = "neq.$value"
+    private fun inList(vararg values: String): String = "in.(${values.joinToString(",")})"
 }
 
 sealed class LoginResult {

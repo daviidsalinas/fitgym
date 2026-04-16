@@ -1,3 +1,4 @@
+import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -15,6 +16,22 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use(localProperties::load)
+        }
+
+        val supabaseUrl = (localProperties.getProperty("SUPABASE_URL")
+            ?: System.getenv("SUPABASE_URL")
+            ?: "")
+        val supabaseAnonKey = (localProperties.getProperty("SUPABASE_ANON_KEY")
+            ?: System.getenv("SUPABASE_ANON_KEY")
+            ?: "")
+
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,6 +54,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -66,16 +84,21 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
     // --- BBDD SUPABASE ---
-    // Motor principal y base de datos
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.0.1")
-    // Autenticación (por si en el futuro quieres login)
-    implementation("io.github.jan-tennert.supabase:gotrue-kt:3.0.1")
-    // El motor de red que usa Supabase para hablar con internet
+    // BOM ayuda a que todas las librerías de Supabase tengan la misma versión automáticamente
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.1"))
+
+    // Motor principal (Base de datos)
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+
+    // Autenticación (¡IMPORTANTE! Cambiado de gotrue-kt a auth-kt)
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+
+    // Motores de red (Ktor)
     implementation("io.ktor:ktor-client-android:3.0.1")
     implementation("io.ktor:ktor-client-content-negotiation:3.0.1")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.1")
 
-    // Serialización (El traductor JSON -> Kotlin)
+    // Serialización
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
 
