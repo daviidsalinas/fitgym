@@ -128,15 +128,18 @@ class FitGymRepository(context: Context) {
     fun updatePassword(userId: Int, currentPassword: String, newPassword: String): ActionResult {
         if (currentPassword.isBlank() || newPassword.isBlank()) return ActionResult.Error("Completa ambos campos de password")
         if (newPassword.length < 6) return ActionResult.Error("La nueva password debe tener al menos 6 caracteres")
+        if (!api.isConfigured()) return ActionResult.Error("Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY")
 
         return runCatching {
-            val user = getSingleRow("usuario", mapOf("id_usuario" to eq(userId)), "password")
+            val user = getSingleRow("usuario", mapOf("id_usuario" to eq(userId)))
                 ?: return ActionResult.Error("Usuario no encontrado")
-            if (user.optString("password") != currentPassword) return ActionResult.Error("La password actual no es correcta")
+            val passwordField = resolvePasswordField(user)
+            if (passwordField == null) return ActionResult.Error("No se encontró el campo de password en usuario")
+            if (user.optString(passwordField) != currentPassword) return ActionResult.Error("La password actual no es correcta")
 
-            api.update("usuario", mapOf("id_usuario" to eq(userId)), JSONObject().put("password", newPassword))
+            api.update("usuario", mapOf("id_usuario" to eq(userId)), JSONObject().put(passwordField, newPassword))
             ActionResult.Success("password actualizada correctamente")
-        }.getOrElse { ActionResult.Error("No se pudo actualizar la password") }
+        }.getOrElse { ActionResult.Error("No se pudo actualizar la password: ${it.message.orEmpty()}") }
     }
 
     fun getReservationDetail(userId: Int): ReservationDetailData? {
@@ -469,15 +472,18 @@ class FitGymRepository(context: Context) {
         val normalizedEmail = email.trim()
         if (normalizedEmail.isBlank() || password.isBlank()) return LoginResult.Error("Introduce email y password")
         if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) return LoginResult.Error("Formato de email no válido")
+        if (!api.isConfigured()) return LoginResult.Error("Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY")
 
         return runCatching {
-            val user = getSingleRow("usuario", mapOf("email" to "eq.$normalizedEmail"), "id_usuario,nombre,password")
+            val user = getSingleRow("usuario", mapOf("email" to "eq.$normalizedEmail"))
+            val userPassword = user?.let(::readPasswordValue)
             when {
                 user == null -> LoginResult.Error("No existe una cuenta con ese email")
-                user.optString("password") != password -> LoginResult.Error("password incorrecta")
+                userPassword == null -> LoginResult.Error("No se encontró el campo de password en usuario")
+                userPassword != password -> LoginResult.Error("password incorrecta")
                 else -> LoginResult.Success(user.optInt("id_usuario"), user.optString("nombre"))
             }
-        }.getOrElse { LoginResult.Error("No se pudo acceder a la base de datos") }
+        }.getOrElse { LoginResult.Error("No se pudo acceder a Supabase: ${it.message.orEmpty()}") }
     }
 
     fun register(nombreCompleto: String, email: String, telefono: String, password: String): RegisterResult {
@@ -489,6 +495,7 @@ class FitGymRepository(context: Context) {
         }
         if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) return RegisterResult.Error("Formato de email no válido")
         if (password.length < 6) return RegisterResult.Error("La password debe tener al menos 6 caracteres")
+        if (!api.isConfigured()) return RegisterResult.Error("Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY")
 
         return runCatching {
             val emailExists = getRows("usuario", mapOf("email" to "eq.$normalizedEmail"), "id_usuario", limit = 1)
@@ -498,15 +505,7 @@ class FitGymRepository(context: Context) {
             val nombre = parts.first()
             val apellidos = if (parts.size > 1) parts[1] else ""
 
-            val inserted = api.insert(
-                "usuario",
-                JSONObject()
-                    .put("nombre", nombre)
-                    .put("apellidos", apellidos)
-                    .put("email", normalizedEmail)
-                    .put("password", password)
-                    .put("fotoPerfil", "")
-            )
+            val inserted = insertUserWithCompatiblePasswordField(nombre, apellidos, normalizedEmail, password)
             if (inserted.length() == 0) return RegisterResult.Error("No se pudo registrar el usuario")
 
             val userId = inserted.getJSONObject(0).optInt("id_usuario")
@@ -518,7 +517,33 @@ class FitGymRepository(context: Context) {
                 api.insert("telefono_usuario", JSONObject().put("id_usuario", userId).put("telefono", telefono.trim()))
             }
             RegisterResult.Success(userId, nombre)
-        }.getOrElse { RegisterResult.Error("No se pudo registrar el usuario") }
+        }.getOrElse { RegisterResult.Error("No se pudo registrar el usuario: ${it.message.orEmpty()}") }
+    }
+
+    private fun insertUserWithCompatiblePasswordField(
+        nombre: String,
+        apellidos: String,
+        email: String,
+        password: String
+    ): org.json.JSONArray {
+        val payloadBase = JSONObject()
+            .put("nombre", nombre)
+            .put("apellidos", apellidos)
+            .put("email", email)
+            .put("fotoPerfil", "")
+
+        val passwordCandidates = listOf("password", "contrasena", "contraseña")
+        var lastError: Throwable? = null
+
+        for (candidate in passwordCandidates) {
+            runCatching {
+                val payload = JSONObject(payloadBase.toString()).put(candidate, password)
+                api.insert("usuario", payload)
+            }.onSuccess { return it }
+                .onFailure { error -> lastError = error }
+        }
+
+        throw IllegalStateException(lastError?.message ?: "No se encontró una columna de password compatible")
     }
 
     private fun getTodayClassItem(scheduleId: Int): TodayClassItem? {
@@ -606,6 +631,12 @@ class FitGymRepository(context: Context) {
     private fun eq(value: Any): String = "eq.$value"
     private fun neq(value: Any): String = "neq.$value"
     private fun inList(vararg values: String): String = "in.(${values.joinToString(",")})"
+
+    private fun resolvePasswordField(user: JSONObject): String? =
+        listOf("password", "contrasena", "contraseña").firstOrNull { user.has(it) }
+
+    private fun readPasswordValue(user: JSONObject): String? =
+        resolvePasswordField(user)?.let { key -> user.optString(key).ifBlank { null } }
 }
 
 sealed class LoginResult {
