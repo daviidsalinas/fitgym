@@ -36,7 +36,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PantallaLogin(
     alIrARegistro: () -> Unit,
-    alEntrarApp: (Int, String) -> Unit
+    alEntrarApp: (Int, String, String) -> Unit
 ) {
     var correo by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
@@ -161,7 +161,7 @@ fun PantallaLogin(
                                 cargando = false
 
                                 when (result) {
-                                    is LoginResult.Success -> alEntrarApp(result.userId, result.userName)
+                                    is LoginResult.Success -> alEntrarApp(result.userId, result.userName, result.role)
                                     is LoginResult.Error -> snackbarHostState.showSnackbar(result.message)
                                 }
                             }

@@ -37,8 +37,11 @@ import com.example.fitgymkt.model.ui.SubscriptionStatus
 import com.example.fitgymkt.notifications.PushNotificationScheduler
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.screen.*
+import com.example.fitgymkt.ui.theme.ColoresFit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -56,7 +59,37 @@ class MainActivity : ComponentActivity() {
             var notificaciones by remember { mutableStateOf(listOf<AppNotification>()) }
             var suscripcion by remember { mutableStateOf<SubscriptionStatus?>(null) }
 
-            val colores = if (esModoOscuro) darkColorScheme() else lightColorScheme()
+            val colores = if (esModoOscuro) {
+                darkColorScheme(
+                    primary = Color(0xFFE5E7EB),
+                    secondary = Color(0xFFCBD5E1),
+                    tertiary = Color(0xFF94A3B8),
+                    background = Color(0xFF111827),
+                    surface = Color(0xFF111827),
+                    surfaceVariant = Color(0xFF1F2937),
+                    onPrimary = Color(0xFF111827),
+                    onSecondary = Color(0xFF111827),
+                    onTertiary = Color(0xFF111827),
+                    onBackground = Color.White,
+                    onSurface = Color.White,
+                    onSurfaceVariant = Color(0xFFD1D5DB)
+                )
+            } else {
+                lightColorScheme(
+                    primary = ColoresFit.Negro,
+                    secondary = Color(0xFF475569),
+                    tertiary = Color(0xFF64748B),
+                    background = ColoresFit.Blanco,
+                    surface = ColoresFit.Blanco,
+                    surfaceVariant = Color(0xFFF8FAFC),
+                    onPrimary = ColoresFit.Blanco,
+                    onSecondary = ColoresFit.Blanco,
+                    onTertiary = ColoresFit.Blanco,
+                    onBackground = ColoresFit.Negro,
+                    onSurface = ColoresFit.Negro,
+                    onSurfaceVariant = Color(0xFF64748B)
+                )
+            }
 
             MaterialTheme(colorScheme = colores) {
                 val context = androidx.compose.ui.platform.LocalContext.current
@@ -70,7 +103,7 @@ class MainActivity : ComponentActivity() {
                 var usuarioProgramadoId by remember { mutableStateOf<Int?>(null) }
                 var rutaSolicitada by remember { mutableStateOf<String?>(null) }
                 var rutaActual by remember { mutableStateOf("splash") }
-                val drawerHabilitado = usuarioSesion != null && rutaActual !in setOf("splash", "login", "registro")
+                val drawerHabilitado = usuarioSesion?.role == "cliente" && rutaActual !in setOf("splash", "login", "registro")
 
                 LaunchedEffect(usuarioSesion?.userId) {
                     val userId = usuarioSesion?.userId
@@ -94,8 +127,11 @@ class MainActivity : ComponentActivity() {
                     ) {
                         requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
-                    notificaciones = repository.getNotifications(userId)
-                    suscripcion = repository.getCurrentSubscription(userId)
+                    val (notificationsResult, subscriptionResult) = withContext(Dispatchers.IO) {
+                        repository.getNotifications(userId) to repository.getCurrentSubscription(userId)
+                    }
+                    notificaciones = notificationsResult
+                    suscripcion = subscriptionResult
                 }
 
                 if (mostrarNotificaciones) {
@@ -200,7 +236,11 @@ fun NavegacionPrincipal(
         composable("splash") {
             PantallaSplash(
                 alTerminar = {
-                    val destino = if (usuarioSesion == null) "login" else "inicio"
+                    val destino = when {
+                        usuarioSesion == null -> "login"
+                        usuarioSesion.role == "admin" -> "admin"
+                        else -> "inicio"
+                    }
                     controladorNavegacion.navigate(destino) {
                         popUpTo("splash") { inclusive = true }
                     }
@@ -210,9 +250,10 @@ fun NavegacionPrincipal(
         composable("login") {
             PantallaLogin(
                 alIrARegistro = { controladorNavegacion.navigate("registro") },
-                alEntrarApp = { userId, userName ->
-                    alCambiarSesion(UsuarioSesion(userId = userId, userName = userName))
-                    controladorNavegacion.navigate("inicio") { popUpTo("login") { inclusive = true } }
+                alEntrarApp = { userId, userName, role ->
+                    alCambiarSesion(UsuarioSesion(userId = userId, userName = userName, role = role))
+                    val destination = if (role == "admin") "admin" else "inicio"
+                    controladorNavegacion.navigate(destination) { popUpTo("login") { inclusive = true } }
                 }
             )
         }
@@ -220,8 +261,19 @@ fun NavegacionPrincipal(
             PantallaRegistro(
                 alVolverAlLogin = { controladorNavegacion.popBackStack() },
                 alRegistroCompletado = { userId, userName ->
-                    alCambiarSesion(UsuarioSesion(userId = userId, userName = userName))
+                    alCambiarSesion(UsuarioSesion(userId = userId, userName = userName, role = "cliente"))
                     controladorNavegacion.navigate("inicio") { popUpTo("login") { inclusive = true } }
+                }
+            )
+        }
+        composable("admin") {
+            PantallaAdmin(
+                adminName = usuarioSesion?.userName ?: "Admin",
+                alCerrarSesion = {
+                    alCambiarSesion(null)
+                    controladorNavegacion.navigate("login") {
+                        popUpTo(controladorNavegacion.graph.id) { inclusive = true }
+                    }
                 }
             )
         }
@@ -438,7 +490,8 @@ fun ContenidoMenuLateral(
 
 data class UsuarioSesion(
     val userId: Int,
-    val userName: String
+    val userName: String,
+    val role: String
 )
 
 @Composable

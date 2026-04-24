@@ -1,9 +1,15 @@
 package com.example.fitgymkt.repository
 
 import android.content.Context
+import android.net.Uri
 import android.util.Patterns
 import com.example.fitgymkt.data.SupabaseRestClient
 import com.example.fitgymkt.model.ui.AnalysisData
+import com.example.fitgymkt.model.ui.AdminClassItem
+import com.example.fitgymkt.model.ui.AdminBookingItem
+import com.example.fitgymkt.model.ui.AdminDashboardData
+import com.example.fitgymkt.model.ui.AdminScheduleItem
+import com.example.fitgymkt.model.ui.AdminUserItem
 import com.example.fitgymkt.model.ui.AppNotification
 import com.example.fitgymkt.model.ui.ClassScheduleItem
 import com.example.fitgymkt.model.ui.ClassWithSchedules
@@ -477,11 +483,18 @@ class FitGymRepository(context: Context) {
         return runCatching {
             val user = getSingleRow("usuario", mapOf("email" to "eq.$normalizedEmail"))
             val userPassword = user?.let(::readPasswordValue)
+            val active = user?.optBoolean("activo", true) ?: true
+            val role = user?.optString("rol").orEmpty().ifBlank { "cliente" }
             when {
                 user == null -> LoginResult.Error("No existe una cuenta con ese email")
                 userPassword == null -> LoginResult.Error("No se encontró el campo de password en usuario")
+                !active -> LoginResult.Error("Esta cuenta está desactivada")
                 userPassword != password -> LoginResult.Error("password incorrecta")
-                else -> LoginResult.Success(user.optInt("id_usuario"), user.optString("nombre"))
+                else -> LoginResult.Success(
+                    userId = user.optInt("id_usuario"),
+                    userName = user.optString("nombre"),
+                    role = role
+                )
             }
         }.getOrElse { LoginResult.Error("No se pudo acceder a Supabase: ${it.message.orEmpty()}") }
     }
@@ -530,6 +543,8 @@ class FitGymRepository(context: Context) {
             .put("nombre", nombre)
             .put("apellidos", apellidos)
             .put("email", email)
+            .put("rol", "cliente")
+            .put("activo", true)
             .put("fotoPerfil", "")
 
         val passwordCandidates = listOf("password", "contrasena", "contraseña")
@@ -544,6 +559,223 @@ class FitGymRepository(context: Context) {
         }
 
         throw IllegalStateException(lastError?.message ?: "No se encontró una columna de password compatible")
+    }
+
+    fun getAdminDashboardData(): AdminDashboardData {
+        return runCatching {
+            val users = getRows("usuario", orderBy = "created_at", ascending = false)
+            val classes = getRows("clase")
+            val schedules = getRows("horario_clase")
+            val reservations = getRows("reserva")
+            val today = currentDateIso()
+
+            AdminDashboardData(
+                totalUsers = users.size,
+                activeUsers = users.count { it.optBoolean("activo", true) },
+                totalClasses = classes.size,
+                todaySchedules = schedules.count { it.optString("fecha") == today },
+                todayReservations = reservations.count { row ->
+                    val scheduleId = row.optInt("id_horario", -1)
+                    getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId)), "fecha")
+                        ?.optString("fecha") == today
+                },
+                recentUsers = users.take(5).map {
+                    AdminUserItem(
+                        id = it.optInt("id_usuario"),
+                        fullName = listOf(it.optString("nombre"), it.optString("apellidos")).joinToString(" ").trim(),
+                        email = it.optString("email"),
+                        role = it.optString("rol").ifBlank { "cliente" },
+                        active = it.optBoolean("activo", true),
+                        createdAt = it.optString("created_at")
+                    )
+                }
+            )
+        }.getOrElse {
+            AdminDashboardData(0, 0, 0, 0, 0, emptyList())
+        }
+    }
+
+    fun getAdminUsers(): List<AdminUserItem> {
+        return runCatching {
+            getRows("usuario", orderBy = "created_at", ascending = false).map {
+                AdminUserItem(
+                    id = it.optInt("id_usuario"),
+                    fullName = listOf(it.optString("nombre"), it.optString("apellidos")).joinToString(" ").trim(),
+                    email = it.optString("email"),
+                    role = it.optString("rol").ifBlank { "cliente" },
+                    active = it.optBoolean("activo", true),
+                    createdAt = it.optString("created_at")
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun getAdminClasses(): List<AdminClassItem> {
+        return runCatching {
+            val classes = getRows("clase", orderBy = "nombre", ascending = true)
+            val schedules = getRows("horario_clase")
+            val reservations = getRows("reserva")
+
+            classes.map { classRow ->
+                val classId = classRow.optInt("id_clase")
+                val classSchedules = schedules.filter { it.optInt("id_clase") == classId }
+                val scheduleIds = classSchedules.map { it.optInt("id_horario") }.toSet()
+
+                AdminClassItem(
+                    id = classId,
+                    name = classRow.optString("nombre"),
+                    description = classRow.optString("descripcion").ifBlank { "Sin descripción todavía" },
+                    imageUrl = classRow.optString("imagen_url"),
+                    schedulesCount = classSchedules.size,
+                    reservationsCount = reservations.count { it.optInt("id_horario") in scheduleIds }
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun createAdminClass(
+        name: String,
+        description: String,
+        imageUri: Uri?
+    ): ActionResult {
+        val normalizedName = name.trim()
+        val normalizedDescription = description.trim()
+        if (normalizedName.isBlank()) return ActionResult.Error("El nombre de la clase es obligatorio")
+
+        return runCatching {
+            val imageUrl = imageUri?.let {
+                api.uploadPublicImage(
+                    bucket = "class-images",
+                    folder = "class-img",
+                    imageUri = it
+                )
+            }.orEmpty()
+
+            val inserted = api.insert(
+                "clase",
+                JSONObject()
+                    .put("nombre", normalizedName)
+                    .put("descripcion", normalizedDescription)
+                    .put("imagen_url", imageUrl)
+            )
+
+            if (inserted.length() > 0) ActionResult.Success("Clase creada correctamente")
+            else ActionResult.Error("No se pudo crear la clase")
+        }.getOrElse { ActionResult.Error("No se pudo crear la clase: ${it.message.orEmpty()}") }
+    }
+
+    fun getAdminSchedules(): List<AdminScheduleItem> {
+        return runCatching {
+            val schedules = getRows("horario_clase", orderBy = "fecha", ascending = true)
+            val classes = getRows("clase")
+            val rooms = getRows("sala")
+            val users = getRows("usuario")
+            val reservations = getRows("reserva")
+
+            schedules.map { schedule ->
+                val scheduleId = schedule.optInt("id_horario")
+                val classId = schedule.optInt("id_clase")
+                val roomId = schedule.optInt("id_sala")
+                val monitorId = schedule.optInt("id_monitor")
+                val reservedSlots = reservations.count {
+                    it.optInt("id_horario") == scheduleId && it.optString("estado") == "reservada"
+                }
+
+                AdminScheduleItem(
+                    id = scheduleId,
+                    className = classes.firstOrNull { it.optInt("id_clase") == classId }?.optString("nombre").orEmpty(),
+                    date = schedule.optString("fecha"),
+                    startTime = schedule.optString("hora_inicio"),
+                    endTime = schedule.optString("hora_fin"),
+                    roomName = rooms.firstOrNull { it.optInt("id_sala") == roomId }?.optString("nombre_sala").orEmpty(),
+                    monitorName = users.firstOrNull { it.optInt("id_usuario") == monitorId }
+                        ?.let { listOf(it.optString("nombre"), it.optString("apellidos")).joinToString(" ").trim() }
+                        .orEmpty(),
+                    totalSlots = schedule.optInt("plazas_totales"),
+                    reservedSlots = reservedSlots
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun createAdminSchedule(
+        classId: Int,
+        date: String,
+        startTime: String,
+        durationMinutes: Int
+    ): ActionResult {
+        if (classId <= 0) return ActionResult.Error("Selecciona una clase")
+        if (!date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return ActionResult.Error("La fecha debe tener formato YYYY-MM-DD")
+        if (!startTime.matches(Regex("\\d{2}:\\d{2}"))) return ActionResult.Error("La hora debe tener formato HH:MM")
+        if (durationMinutes <= 0) return ActionResult.Error("La duración debe ser mayor que 0")
+
+        return runCatching {
+            val room = getRows("sala", orderBy = "id_sala", ascending = true, limit = 1).firstOrNull()
+                ?: return ActionResult.Error("No hay salas disponibles")
+            val monitor = getRows("monitor", orderBy = "id_usuario", ascending = true, limit = 1).firstOrNull()
+                ?: return ActionResult.Error("No hay monitores disponibles")
+
+            val endTime = calculateEndTime(startTime, durationMinutes)
+                ?: return ActionResult.Error("No se pudo calcular la hora de fin")
+
+            val inserted = api.insert(
+                "horario_clase",
+                JSONObject()
+                    .put("id_clase", classId)
+                    .put("id_monitor", monitor.optInt("id_usuario"))
+                    .put("id_sala", room.optInt("id_sala"))
+                    .put("fecha", date)
+                    .put("hora_inicio", ensureSeconds(startTime))
+                    .put("hora_fin", endTime)
+                    .put("plazas_totales", room.optInt("capacidad"))
+            )
+
+            if (inserted.length() > 0) ActionResult.Success("Horario creado correctamente")
+            else ActionResult.Error("No se pudo crear el horario")
+        }.getOrElse { ActionResult.Error("No se pudo crear el horario: ${it.message.orEmpty()}") }
+    }
+
+    fun getAdminBookings(): List<AdminBookingItem> {
+        return runCatching {
+            val bookings = getRows("reserva", orderBy = "fecha_reserva", ascending = false)
+            val schedules = getRows("horario_clase")
+            val classes = getRows("clase")
+            val users = getRows("usuario")
+
+            bookings.mapNotNull { booking ->
+                val userId = booking.optInt("id_usuario")
+                val scheduleId = booking.optInt("id_horario")
+                val user = users.firstOrNull { it.optInt("id_usuario") == userId } ?: return@mapNotNull null
+                val schedule = schedules.firstOrNull { it.optInt("id_horario") == scheduleId } ?: return@mapNotNull null
+                val className = classes.firstOrNull { it.optInt("id_clase") == schedule.optInt("id_clase") }?.optString("nombre").orEmpty()
+
+                AdminBookingItem(
+                    id = booking.optInt("id_reserva"),
+                    userName = listOf(user.optString("nombre"), user.optString("apellidos")).joinToString(" ").trim(),
+                    userEmail = user.optString("email"),
+                    className = className,
+                    date = schedule.optString("fecha"),
+                    startTime = schedule.optString("hora_inicio"),
+                    state = booking.optString("estado"),
+                    reservationDate = booking.optString("fecha_reserva")
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun updateUserActiveStatus(userId: Int, active: Boolean): ActionResult {
+        return runCatching {
+            val updated = api.update(
+                "usuario",
+                mapOf("id_usuario" to eq(userId)),
+                JSONObject().put("activo", active)
+            )
+            if (updated.length() > 0) {
+                ActionResult.Success(if (active) "Usuario activado" else "Usuario desactivado")
+            } else {
+                ActionResult.Error("No se encontró el usuario")
+            }
+        }.getOrElse { ActionResult.Error("No se pudo actualizar el usuario") }
     }
 
     private fun getTodayClassItem(scheduleId: Int): TodayClassItem? {
@@ -579,6 +811,20 @@ class FitGymRepository(context: Context) {
     ): JSONObject? = getRows(table, filters, select, orderBy, ascending, limit = 1).firstOrNull()
 
     private fun currentDateIso(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+    private fun ensureSeconds(time: String): String = if (time.length == 5) "$time:00" else time
+
+    private fun calculateEndTime(startTime: String, durationMinutes: Int): String? {
+        return runCatching {
+            val parts = startTime.split(":")
+            val hour = parts.getOrNull(0)?.toInt() ?: return null
+            val minute = parts.getOrNull(1)?.toInt() ?: return null
+            val totalMinutes = hour * 60 + minute + durationMinutes
+            val endHour = (totalMinutes / 60) % 24
+            val endMinute = totalMinutes % 60
+            String.format(Locale.US, "%02d:%02d:00", endHour, endMinute)
+        }.getOrNull()
+    }
 
     private fun weekDayFromDate(date: Date): String {
         val calendar = Calendar.getInstance().apply { time = date }
@@ -640,7 +886,7 @@ class FitGymRepository(context: Context) {
 }
 
 sealed class LoginResult {
-    data class Success(val userId: Int, val userName: String) : LoginResult()
+    data class Success(val userId: Int, val userName: String, val role: String) : LoginResult()
     data class Error(val message: String) : LoginResult()
 }
 
