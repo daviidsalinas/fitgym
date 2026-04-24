@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit
 class FitGymRepository(context: Context) {
 
     private val api = SupabaseRestClient(context)
+    private val appContext = context.applicationContext
 
     fun getHomeData(userId: Int): HomeData {
         return runCatching {
@@ -114,6 +115,11 @@ class FitGymRepository(context: Context) {
             val client = getSingleRow("cliente", mapOf("id_usuario" to eq(userId)))
             val phone = getSingleRow("telefono_usuario", mapOf("id_usuario" to eq(userId)), orderBy = "id_telefono")
             val cfg = getSingleRow("configuracion_usuario", mapOf("id_usuario" to eq(userId)))
+            val preferredLanguage = appContext
+                .getSharedPreferences("fitgym_app_prefs", Context.MODE_PRIVATE)
+                .getString("selected_language", "ES")
+                ?.uppercase(Locale.ROOT)
+                ?: "ES"
 
             ProfileData(
                 fullName = listOf(user?.optString("nombre"), user?.optString("apellidos")).joinToString(" ").trim().ifBlank { "Usuario" },
@@ -124,7 +130,10 @@ class FitGymRepository(context: Context) {
                 weightKg = client?.optDouble("peso", 0.0) ?: 0.0,
                 heightCm = client?.optDouble("altura", 0.0) ?: 0.0,
                 notificationsEnabled = cfg?.optBoolean("notificaciones", true) ?: true,
-                language = cfg?.optString("idioma").orEmpty().ifBlank { "ES" }
+                language = cfg?.optString("idioma")
+                    ?.uppercase(Locale.ROOT)
+                    ?.takeIf { it == preferredLanguage }
+                    ?: preferredLanguage
             )
         }.getOrElse {
             ProfileData("Usuario", "", "", "", 0, 0.0, 0.0, true, "ES")

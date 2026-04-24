@@ -171,6 +171,8 @@
     <string name="admin_dashboard_short">Dashboard</string>
     <string name="admin_users_title">Usuarios</string>
     <string name="admin_users_short">Usuarios</string>
+    <string name="admin_management_title">Gestión</string>
+    <string name="admin_management_subtitle">Catálogo, horarios y reservas en una sola vista.</string>
     <string name="admin_classes_title">Clases</string>
     <string name="admin_classes_short">Clases</string>
     <string name="admin_schedules_title">Horarios</string>
