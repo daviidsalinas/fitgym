@@ -32,6 +32,7 @@ class FitGymRepository(context: Context) {
 
     private val api = SupabaseRestClient(context)
     private val appContext = context.applicationContext
+    private val passwordFieldCandidates = listOf("password", "contrasena", "contrase\u00f1a")
 
     fun getHomeData(userId: Int): HomeData {
         return runCatching {
@@ -556,7 +557,11 @@ class FitGymRepository(context: Context) {
             .put("activo", true)
             .put("fotoPerfil", "")
 
-        val passwordCandidates = listOf("password", "contrasena", "contraseña")
+        val inferredField = resolvePasswordFieldForUserTable()
+        val passwordCandidates = buildList {
+            if (!inferredField.isNullOrBlank()) add(inferredField)
+            addAll(passwordFieldCandidates.filter { it != inferredField })
+        }
         var lastError: Throwable? = null
 
         for (candidate in passwordCandidates) {
@@ -887,8 +892,17 @@ class FitGymRepository(context: Context) {
     private fun neq(value: Any): String = "neq.$value"
     private fun inList(vararg values: String): String = "in.(${values.joinToString(",")})"
 
+    private fun resolvePasswordFieldForUserTable(): String? =
+        getSingleRow(
+            table = "usuario",
+            filters = emptyMap(),
+            select = "*",
+            orderBy = "id_usuario",
+            ascending = true
+        )?.let(::resolvePasswordField)
+
     private fun resolvePasswordField(user: JSONObject): String? =
-        listOf("password", "contrasena", "contraseña").firstOrNull { user.has(it) }
+        passwordFieldCandidates.firstOrNull { user.has(it) }
 
     private fun readPasswordValue(user: JSONObject): String? =
         resolvePasswordField(user)?.let { key -> user.optString(key).ifBlank { null } }

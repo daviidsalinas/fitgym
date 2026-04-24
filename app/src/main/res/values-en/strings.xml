@@ -48,6 +48,7 @@
     <string name="reserve_spot">Book your spot</string>
     <string name="no_classes_for_filter">No classes for the selected filter</string>
     <string name="few_spots">Few spots left!</string>
+    <string name="class_schedules_count">%1$d schedules</string>
     <string name="all_days">All</string>
     <string name="monday">Monday</string>
     <string name="tuesday">Tuesday</string>
@@ -104,6 +105,7 @@ Hours: Mon-Fri 07:00 to 22:00</string>
     <string name="analysis_in_gym_this_week">at the gym this week</string>
     <string name="analysis_completed_percent">%1$d%% completed</string>
     <string name="analysis_remaining_hours">%1$.1fh remaining</string>
+    <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Weekly activity</string>
     <string name="analysis_last_7_days">Last 7 days</string>
     <string name="analysis_total">Total</string>
@@ -165,6 +167,8 @@ Hours: Mon-Fri 07:00 to 22:00</string>
     <string name="admin_dashboard_short">Dashboard</string>
     <string name="admin_users_title">Users</string>
     <string name="admin_users_short">Users</string>
+    <string name="admin_management_title">Management</string>
+    <string name="admin_management_subtitle">Catalog, schedules, and bookings in a single view.</string>
     <string name="admin_classes_title">Classes</string>
     <string name="admin_classes_short">Classes</string>
     <string name="admin_schedules_title">Schedules</string>

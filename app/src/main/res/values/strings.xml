@@ -54,6 +54,7 @@
     <string name="reserve_spot">Reserva tu plaza</string>
     <string name="no_classes_for_filter">No hay clases para el filtro seleccionado</string>
     <string name="few_spots">¡Pocas plazas!</string>
+    <string name="class_schedules_count">%1$d horarios</string>
     <string name="all_days">Todos</string>
     <string name="monday">Lunes</string>
     <string name="tuesday">Martes</string>
@@ -110,6 +111,7 @@
     <string name="analysis_in_gym_this_week">en el gimnasio esta semana</string>
     <string name="analysis_completed_percent">%1$d%% completado</string>
     <string name="analysis_remaining_hours">%1$.1fh restantes</string>
+    <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Actividad semanal</string>
     <string name="analysis_last_7_days">Últimos 7 días</string>
     <string name="analysis_total">Total</string>

@@ -48,6 +48,7 @@
     <string name="reserve_spot">Buche deinen Platz</string>
     <string name="no_classes_for_filter">Keine Kurse für den ausgewählten Filter</string>
     <string name="few_spots">Wenige Plätze!</string>
+    <string name="class_schedules_count">%1$d Termine</string>
     <string name="all_days">Alle</string>
     <string name="monday">Montag</string>
     <string name="tuesday">Dienstag</string>
@@ -99,6 +100,7 @@
     <string name="analysis_in_gym_this_week">im Fitnessstudio diese Woche</string>
     <string name="analysis_completed_percent">%1$d%% abgeschlossen</string>
     <string name="analysis_remaining_hours">%1$.1fh verbleibend</string>
+    <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Wöchentliche Aktivität</string>
     <string name="analysis_last_7_days">Letzte 7 Tage</string>
     <string name="analysis_total">Gesamt</string>
@@ -160,6 +162,8 @@
     <string name="admin_dashboard_short">Dashboard</string>
     <string name="admin_users_title">Benutzer</string>
     <string name="admin_users_short">Benutzer</string>
+    <string name="admin_management_title">Verwaltung</string>
+    <string name="admin_management_subtitle">Katalog, Zeitpläne und Buchungen in einer einzigen Ansicht.</string>
     <string name="admin_classes_title">Kurse</string>
     <string name="admin_classes_short">Kurse</string>
     <string name="admin_schedules_title">Zeitpläne</string>

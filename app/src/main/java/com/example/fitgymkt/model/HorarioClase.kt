@@ -7,7 +7,7 @@ data class HorarioClase(
     val idClase: Int,
     val idMonitor: Int,
     val idSala: Int,
-    val fecha: String,       // usamos String para SQLite y compatibilidad API <26
+    val fecha: String,
     val horaInicio: String,
     val horaFin: String,
     val plazasTotales: Int

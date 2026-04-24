@@ -2,15 +2,38 @@ package com.example.fitgymkt.screen
 
 import android.content.Intent
 import android.net.Uri
-
-import androidx.compose.foundation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -22,20 +45,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import com.example.fitgymkt.R
 import com.example.fitgymkt.model.ui.HomeData
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
+import com.example.fitgymkt.ui.theme.ColoresFit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaInicio(
     userId: Int,
@@ -58,93 +81,156 @@ fun PantallaInicio(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = alAbrirMenu) {
-                        Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = alAbrirNotificaciones) {
-                        BadgedBox(badge = { Badge { Text("2") } }) {
-                            Icon(Icons.Default.Notifications, null)
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
+            FitGymTopBar(
+                unreadCount = 2,
+                onMenuClick = alAbrirMenu,
+                onNotificationsClick = alAbrirNotificaciones
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                NavigationBarItem(selected = true, onClick = { }, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
-                NavigationBarItem(selected = false, onClick = alIrAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
-                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
-                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
-            }
+            FitGymBottomBar(
+                current = FitGymDestination.Home,
+                onHomeClick = {},
+                onClassesClick = alIrAClases,
+                onAnalysisClick = alIrAAnalisis,
+                onProfileClick = alIrAPerfil
+            )
         }
     ) { padding ->
-
         if (homeData == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = ColoresFit.Naranja)
             }
             return@Scaffold
         }
 
         val data = homeData!!
+        val nextClass = data.todayClasses.firstOrNull()
+
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
-            // Bienvenida
-            Text(
-                stringResource(R.string.home_greeting, data.userName),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+            FitGymSectionHeader(
+                title = stringResource(R.string.home_greeting, data.userName),
+                subtitle = stringResource(R.string.home_motivation)
             )
-            Text(stringResource(R.string.home_motivation), color = Color.Gray)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Resumen de Actividad
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CardInicioAccion(stringResource(R.string.book_class), stringResource(R.string.see_classes), Icons.Default.DateRange, alIrAClases, Modifier.weight(1f))
-                CardInicioAccion(stringResource(R.string.gym_music), stringResource(R.string.open_spotify), Icons.Default.LibraryMusic, {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://open.spotify.com/playlist/37i9dQZF1DXaxEKcoCdWHD?si=32f691f5ae2c4c86")))
-                }, Modifier.weight(1f))
+            FitGymHeroPanel(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = stringResource(R.string.next_class),
+                    color = Color.White.copy(alpha = 0.78f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = nextClass?.className ?: stringResource(R.string.no_upcoming_classes),
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = if (nextClass != null) "${nextClass.startTime}  •  ${nextClass.roomName}" else stringResource(R.string.see_classes),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = alIrAClases,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ColoresFit.Naranja,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(stringResource(R.string.book_class))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CardInicioAccion(
+                    titulo = stringResource(R.string.book_class),
+                    subtitulo = stringResource(R.string.see_classes),
+                    icono = Icons.Default.DateRange,
+                    onClick = alIrAClases,
+                    modifier = Modifier.weight(1f)
+                )
+                CardInicioAccion(
+                    titulo = stringResource(R.string.gym_music),
+                    subtitulo = stringResource(R.string.open_spotify),
+                    icono = Icons.Default.LibraryMusic,
+                    onClick = {
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://open.spotify.com/playlist/37i9dQZF1DXaxEKcoCdWHD?si=32f691f5ae2c4c86")
+                            )
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CardInicioAccion(stringResource(R.string.my_progress), stringResource(R.string.go_to_analysis), Icons.Default.BarChart, alIrAAnalisis, Modifier.weight(1f))
-                CardInicioAccion(stringResource(R.string.my_history), stringResource(R.string.my_reservations), Icons.Default.History, alIrAHistorial, Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CardInicioAccion(
+                    titulo = stringResource(R.string.my_progress),
+                    subtitulo = stringResource(R.string.go_to_analysis),
+                    icono = Icons.Default.BarChart,
+                    onClick = alIrAAnalisis,
+                    modifier = Modifier.weight(1f)
+                )
+                CardInicioAccion(
+                    titulo = stringResource(R.string.my_history),
+                    subtitulo = stringResource(R.string.my_reservations),
+                    icono = Icons.Default.History,
+                    onClick = alIrAHistorial,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            Text(stringResource(R.string.next_class), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            val nextClass = data.todayClasses.firstOrNull()
             if (nextClass != null) {
+                FitGymSectionHeader(
+                    title = stringResource(R.string.next_class),
+                    subtitle = stringResource(R.string.reserve_spot)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 ItemClaseHoy(
                     nombre = nextClass.className,
                     hora = nextClass.startTime,
                     sala = nextClass.roomName,
                     icono = iconByClass(nextClass.className)
                 )
-            } else {
-                Text(stringResource(R.string.no_upcoming_classes), color = Color.Gray)
+                Spacer(modifier = Modifier.height(22.dp))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             TarjetaRegistroEntrenamiento(
                 horasEntrenamiento = horasEntrenamiento,
@@ -153,7 +239,9 @@ fun PantallaInicio(
                 onMinutosChange = { minutosEntrenamiento = it },
                 onRegistrar = {
                     scope.launch {
-                        when (val result = withContext(Dispatchers.IO) { repository.registerWorkout(userId, (horasEntrenamiento * 60) + minutosEntrenamiento) }) {
+                        when (val result = withContext(Dispatchers.IO) {
+                            repository.registerWorkout(userId, (horasEntrenamiento * 60) + minutosEntrenamiento)
+                        }) {
                             is ActionResult.Success -> {
                                 snackbarHostState.showSnackbar(result.message)
                                 horasEntrenamiento = 0
@@ -165,6 +253,7 @@ fun PantallaInicio(
                 }
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
@@ -177,85 +266,166 @@ private fun TarjetaRegistroEntrenamiento(
     onMinutosChange: (Int) -> Unit,
     onRegistrar: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(stringResource(R.string.register_training), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(stringResource(R.string.register_training_hint), color = Color.Gray, fontSize = 12.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                AjustadorNumero(stringResource(R.string.hours), horasEntrenamiento, 0..8, onHorasChange)
-                AjustadorNumero(stringResource(R.string.minutes_short), minutosEntrenamiento, 0..59, onMinutosChange)
+    FitGymPanel(
+        modifier = Modifier.fillMaxWidth(),
+        bordered = true
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            FitGymSectionHeader(
+                title = stringResource(R.string.register_training),
+                subtitle = stringResource(R.string.register_training_hint)
+            )
+            Spacer(modifier = Modifier.height(18.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                AjustadorNumero(
+                    label = stringResource(R.string.hours),
+                    value = horasEntrenamiento,
+                    range = 0..8,
+                    onChange = onHorasChange,
+                    modifier = Modifier.weight(1f)
+                )
+                AjustadorNumero(
+                    label = stringResource(R.string.minutes_short),
+                    value = minutosEntrenamiento,
+                    range = 0..59,
+                    onChange = onMinutosChange,
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = onRegistrar, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Bolt, null)
-                Text(" ${stringResource(R.string.register_minutes, (horasEntrenamiento * 60) + minutosEntrenamiento)}")
+            Spacer(modifier = Modifier.height(18.dp))
+            Button(
+                onClick = onRegistrar,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ColoresFit.Negro,
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(Icons.Default.Bolt, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.register_minutes, (horasEntrenamiento * 60) + minutosEntrenamiento))
             }
         }
     }
 }
 
 @Composable
-private fun AjustadorNumero(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { onChange((value - 1).coerceAtLeast(range.first)) }) { Icon(Icons.Default.Remove, null) }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, fontSize = 12.sp, color = Color.Gray)
-            Text(value.toString().padStart(2, '0'), fontWeight = FontWeight.Bold)
-        }
-        IconButton(onClick = { onChange((value + 1).coerceAtMost(range.last)) }) { Icon(Icons.Default.Add, null) }
-    }
-}
-
-@Composable
-private fun CardInicioAccion(titulo: String, subtitulo: String, icono: ImageVector, onClick: () -> Unit, modifier: Modifier) {
-    Card(
+private fun AjustadorNumero(
+    label: String,
+    value: Int,
+    range: IntRange,
+    onChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FitGymPanel(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(22.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(onClick = { onChange((value - 1).coerceAtLeast(range.first)) }) {
+                Icon(Icons.Default.Remove, contentDescription = null, tint = ColoresFit.Negro)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, fontSize = 12.sp, color = ColoresFit.GrisTexto)
+                Text(
+                    value.toString().padStart(2, '0'),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            IconButton(onClick = { onChange((value + 1).coerceAtMost(range.last)) }) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = ColoresFit.Negro)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CardInicioAccion(
+    titulo: String,
+    subtitulo: String,
+    icono: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier
+) {
+    androidx.compose.material3.Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         onClick = onClick
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Icon(icono, null)
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(titulo, fontWeight = FontWeight.Bold)
-            Text(subtitulo, fontSize = 12.sp, color = Color.Gray)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icono, contentDescription = null, tint = ColoresFit.Negro)
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(titulo, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(subtitulo, fontSize = 12.sp, color = ColoresFit.GrisTexto)
         }
     }
 }
 
-private fun iconByClass(className: String): ImageVector {
-    return when {
-        className.contains("yoga", ignoreCase = true) -> Icons.Default.SelfImprovement
-        className.contains("pilates", ignoreCase = true) -> Icons.Default.AccessibilityNew
-        else -> Icons.Default.FitnessCenter
-    }
+private fun iconByClass(className: String): ImageVector = when {
+    className.contains("yoga", ignoreCase = true) -> Icons.Default.SelfImprovement
+    className.contains("pilates", ignoreCase = true) -> Icons.Default.AccessibilityNew
+    else -> Icons.Default.FitnessCenter
 }
 
 @Composable
 fun ItemClaseHoy(nombre: String, hora: String, sala: String, icono: ImageVector) {
-    Card(
+    FitGymPanel(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        bordered = true
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(12.dp)),
+                    .size(52.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icono, null, tint = MaterialTheme.colorScheme.surface)
+                Icon(icono, contentDescription = null, tint = ColoresFit.Negro)
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(nombre, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$hora • $sala", color = Color.Gray, fontSize = 14.sp)
+                Text(nombre, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AccessTime, contentDescription = null, tint = ColoresFit.GrisTexto, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("$hora  •  $sala", color = ColoresFit.GrisTexto, fontSize = 13.sp)
+                }
             }
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.primary)
+            Box(
+                modifier = Modifier
+                    .background(ColoresFit.NaranjaSuave, CircleShape)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(stringResource(R.string.book_class), color = ColoresFit.Naranja, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

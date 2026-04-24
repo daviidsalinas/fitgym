@@ -48,6 +48,7 @@
     <string name="reserve_spot">Reserve sua vaga</string>
     <string name="no_classes_for_filter">Não há aulas para o filtro selecionado</string>
     <string name="few_spots">Poucas vagas!</string>
+    <string name="class_schedules_count">%1$d horários</string>
     <string name="all_days">Todos</string>
     <string name="monday">Segunda</string>
     <string name="tuesday">Terça</string>
@@ -99,6 +100,7 @@
     <string name="analysis_in_gym_this_week">na academia esta semana</string>
     <string name="analysis_completed_percent">%1$d%% concluído</string>
     <string name="analysis_remaining_hours">%1$.1fh restantes</string>
+    <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Atividade semanal</string>
     <string name="analysis_last_7_days">Últimos 7 dias</string>
     <string name="analysis_total">Total</string>
@@ -160,6 +162,8 @@
     <string name="admin_dashboard_short">Dashboard</string>
     <string name="admin_users_title">Usuários</string>
     <string name="admin_users_short">Usuários</string>
+    <string name="admin_management_title">Gestão</string>
+    <string name="admin_management_subtitle">Catálogo, horários e reservas em uma única visualização.</string>
     <string name="admin_classes_title">Aulas</string>
     <string name="admin_classes_short">Aulas</string>
     <string name="admin_schedules_title">Horários</string>

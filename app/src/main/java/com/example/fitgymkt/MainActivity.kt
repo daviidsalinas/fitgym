@@ -38,6 +38,7 @@ import com.example.fitgymkt.notifications.PushNotificationScheduler
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.screen.*
 import com.example.fitgymkt.ui.theme.ColoresFit
+import com.example.fitgymkt.ui.theme.FitgymktTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -59,39 +60,7 @@ class MainActivity : ComponentActivity() {
             var notificaciones by remember { mutableStateOf(listOf<AppNotification>()) }
             var suscripcion by remember { mutableStateOf<SubscriptionStatus?>(null) }
 
-            val colores = if (esModoOscuro) {
-                darkColorScheme(
-                    primary = Color(0xFFE5E7EB),
-                    secondary = Color(0xFFCBD5E1),
-                    tertiary = Color(0xFF94A3B8),
-                    background = Color(0xFF111827),
-                    surface = Color(0xFF111827),
-                    surfaceVariant = Color(0xFF1F2937),
-                    onPrimary = Color(0xFF111827),
-                    onSecondary = Color(0xFF111827),
-                    onTertiary = Color(0xFF111827),
-                    onBackground = Color.White,
-                    onSurface = Color.White,
-                    onSurfaceVariant = Color(0xFFD1D5DB)
-                )
-            } else {
-                lightColorScheme(
-                    primary = ColoresFit.Negro,
-                    secondary = Color(0xFF475569),
-                    tertiary = Color(0xFF64748B),
-                    background = ColoresFit.Blanco,
-                    surface = ColoresFit.Blanco,
-                    surfaceVariant = Color(0xFFF8FAFC),
-                    onPrimary = ColoresFit.Blanco,
-                    onSecondary = ColoresFit.Blanco,
-                    onTertiary = ColoresFit.Blanco,
-                    onBackground = ColoresFit.Negro,
-                    onSurface = ColoresFit.Negro,
-                    onSurfaceVariant = Color(0xFF64748B)
-                )
-            }
-
-            MaterialTheme(colorScheme = colores) {
+            FitgymktTheme(darkTheme = esModoOscuro, dynamicColor = false) {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val requestNotificationPermission = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission()
@@ -234,7 +203,7 @@ fun NavegacionPrincipal(
 
     NavHost(navController = controladorNavegacion, startDestination = "splash") {
         composable("splash") {
-            PantallaSplash(
+            FitGymSplashScreen(
                 alTerminar = {
                     val destino = when {
                         usuarioSesion == null -> "login"
@@ -387,31 +356,40 @@ fun DialogoNotificacionesGlobal(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        FitGymPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            bordered = true
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(22.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Notifications, null)
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(ColoresFit.Negro, RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Notifications, null, tint = Color.White)
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.notifications), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text(stringResource(R.string.unread_count, notificaciones.count { !it.read }), color = Color.Gray, fontSize = 12.sp)
+                        Text(stringResource(R.string.unread_count, notificaciones.count { !it.read }), color = ColoresFit.GrisTexto, fontSize = 12.sp)
                     }
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null) }
                 }
 
                 Button(
                     onClick = onMarcarLeidas,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = Color.Black),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColoresFit.Negro, contentColor = Color.White),
+                    shape = RoundedCornerShape(18.dp)
                 ) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
                     Text(" ${stringResource(R.string.mark_all_as_read)}", fontSize = 13.sp)
-
                 }
 
                 notificaciones.forEach {
@@ -424,9 +402,19 @@ fun DialogoNotificacionesGlobal(
 
 @Composable
 fun ItemNoti(titulo: String, desc: String, tiempo: String, esNueva: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-        Box(modifier = Modifier.size(40.dp).background(Color.Black, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.NotificationsActive, null, tint = Color.White, modifier = Modifier.size(20.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.NotificationsActive, null, tint = ColoresFit.Negro, modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -434,11 +422,11 @@ fun ItemNoti(titulo: String, desc: String, tiempo: String, esNueva: Boolean) {
                 Text(titulo, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 if (esNueva) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.size(6.dp).background(Color.Black, CircleShape))
+                    Box(modifier = Modifier.size(8.dp).background(ColoresFit.Naranja, CircleShape))
                 }
             }
-            Text(desc, color = Color.Gray, fontSize = 13.sp)
-            Text(tiempo, color = Color.LightGray, fontSize = 11.sp)
+            Text(desc, color = ColoresFit.GrisTexto, fontSize = 13.sp)
+            Text(tiempo, color = ColoresFit.GrisSecundario, fontSize = 11.sp)
         }
     }
 }
@@ -458,30 +446,43 @@ fun ContenidoMenuLateral(
         drawerContainerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-            IconButton(onClick = alCerrar, modifier = Modifier.align(Alignment.End)) {
+            IconButton(
+                onClick = alCerrar,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
+            ) {
                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(60.dp).background(Color.Black, CircleShape), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.size(60.dp).background(ColoresFit.Negro, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(30.dp))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(nombreUsuario, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        subscription?.let { stringResource(R.string.subscription_expires, it.endDate) }
+                            ?: stringResource(R.string.no_active_subscription),
+                        fontSize = 12.sp,
+                        color = ColoresFit.GrisTexto
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(36.dp))
             ItemMenuLateral(Icons.Default.CreditCard, stringResource(R.string.subscription), onClick = alVerSuscripcion)
-            Text(subscription?.let { stringResource(R.string.subscription_expires, it.endDate) } ?: stringResource(R.string.no_active_subscription), fontSize = 12.sp, color = Color.Gray)
             ItemMenuLateral(Icons.Default.HeadsetMic, stringResource(R.string.contact_support), onClick = alVerContacto)
             ItemMenuLateral(Icons.Default.History, stringResource(R.string.nav_history), onClick = alVerHistorial)
             Spacer(modifier = Modifier.weight(1f))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            TextButton(onClick = alCerrarSesion, modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            TextButton(onClick = alCerrarSesion, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.Red)
+                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = ColoresFit.Rojo)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text(stringResource(R.string.logout), color = Color.Red, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.logout), color = ColoresFit.Rojo, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -497,11 +498,23 @@ data class UsuarioSesion(
 @Composable
 fun ItemMenuLateral(icono: ImageVector, texto: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icono, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.width(20.dp))
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(Color.White, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icono, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        }
+        Spacer(modifier = Modifier.width(14.dp))
         Text(texto, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }

@@ -13,39 +13,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,15 +46,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.R
+import com.example.fitgymkt.model.ui.ReservationDetailData
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
+import com.example.fitgymkt.ui.theme.ColoresFit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaDetalleReserva(
     userId: Int,
@@ -96,79 +80,90 @@ fun PantallaDetalleReserva(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = { IconButton(onClick = alAbrirMenu) { Icon(Icons.Default.Menu, null) } },
-                actions = {
-                    IconButton(onClick = alAbrirNotificaciones) {
-                        BadgedBox(badge = { Badge { Text("2") } }) {
-                            Icon(Icons.Default.Notifications, null)
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
+            FitGymTopBar(
+                onBackClick = alVolverAClases,
+                unreadCount = 2,
+                onNotificationsClick = alAbrirNotificaciones
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(selected = false, onClick = alIrAInicio, icon = { Icon(Icons.Default.Home, null) }, label = { Text(stringResource(R.string.nav_home)) })
-                NavigationBarItem(selected = true, onClick = alVolverAClases, icon = { Icon(Icons.Default.DateRange, null) }, label = { Text(stringResource(R.string.nav_classes)) })
-                NavigationBarItem(selected = false, onClick = alIrAAnalisis, icon = { Icon(Icons.Default.BarChart, null) }, label = { Text(stringResource(R.string.nav_analysis)) })
-                NavigationBarItem(selected = false, onClick = alIrAPerfil, icon = { Icon(Icons.Default.Person, null) }, label = { Text(stringResource(R.string.nav_profile)) })
-            }
+            FitGymBottomBar(
+                current = FitGymDestination.Classes,
+                onHomeClick = alIrAInicio,
+                onClassesClick = alVolverAClases,
+                onAnalysisClick = alIrAAnalisis,
+                onProfileClick = alIrAPerfil
+            )
         }
     ) { padding ->
         if (reservationDetail == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = ColoresFit.Naranja)
             }
             return@Scaffold
         }
 
         val detail = reservationDetail!!
 
-        Column(modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.DarkGray)) {
-                Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
-                    IconButton(
-                        onClick = alVolverAClases,
-                        modifier = Modifier.align(Alignment.Start).background(Color.Black.copy(0.5f), CircleShape)
-                    ) {
-                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(detail.className, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text(detail.classDescription, color = Color.White.copy(0.8f), fontSize = 16.sp)
-                }
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+        ) {
+            FitGymHeroPanel(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.class_details),
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = detail.className,
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = detail.classDescription,
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
 
-            // 1. Tarjeta de Detalles principales
-            Card(
-                modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    Text(stringResource(R.string.class_details), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(18.dp))
 
+            FitGymPanel(modifier = Modifier.fillMaxWidth(), bordered = true) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Text(stringResource(R.string.class_details), style = MaterialTheme.typography.titleLarge)
                     ItemDetalle(Icons.Default.CalendarMonth, stringResource(R.string.day_and_time), "${detail.date}\n${detail.startTime}")
                     ItemDetalle(Icons.Default.Person, stringResource(R.string.instructor), detail.instructorName)
                     ItemDetalle(Icons.Default.LocationOn, stringResource(R.string.location), detail.roomName)
-                    ItemDetalle(Icons.Default.Groups, stringResource(R.string.availability), stringResource(R.string.detail_availability_value, detail.occupiedSlots, detail.totalSlots))
+                    ItemDetalle(
+                        Icons.Default.Groups,
+                        stringResource(R.string.availability),
+                        stringResource(R.string.detail_availability_value, detail.occupiedSlots, detail.totalSlots)
+                    )
                 }
             }
 
-            // 2. Sección: Qué necesitas
-            Card(
-                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FitGymPanel(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             ) {
-                Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.what_you_need), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.what_you_need), style = MaterialTheme.typography.titleLarge)
                     FilaRequisito(stringResource(R.string.requirement_clothes))
                     FilaRequisito(stringResource(R.string.requirement_water))
                     FilaRequisito(stringResource(R.string.requirement_towel))
@@ -176,24 +171,25 @@ fun PantallaDetalleReserva(
                 }
             }
 
-            // 3. Sección: Política de Cancelación
-            Card(
-                modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FitGymPanel(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = ColoresFit.NaranjaSuave
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text(stringResource(R.string.cancellation_policy), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancellation_policy), style = MaterialTheme.typography.titleMedium, color = ColoresFit.Negro)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         stringResource(R.string.cancellation_policy_body),
-                        fontSize = 14.sp,
-                        color = Color.DarkGray
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ColoresFit.AzulFit
                     )
                 }
             }
 
-            // Botón de Acción Final
+            Spacer(modifier = Modifier.height(18.dp))
+
             Button(
                 onClick = {
                     scope.launch {
@@ -206,16 +202,21 @@ fun PantallaDetalleReserva(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !reservando && scheduleId > 0            ) {
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColoresFit.Negro),
+                shape = RoundedCornerShape(20.dp),
+                enabled = !reservando && scheduleId > 0
+            ) {
                 if (reservando) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Text(stringResource(R.string.book_spot), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.book_spot), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
@@ -224,15 +225,17 @@ fun PantallaDetalleReserva(
 fun ItemDetalle(icono: ImageVector, titulo: String, info: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            modifier = Modifier.size(48.dp).background(Color(0xFFF0F4F8), RoundedCornerShape(12.dp)),
+            modifier = Modifier
+                .size(48.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icono, null, tint = Color(0xFF1A1A1A))
+            Icon(icono, contentDescription = null, tint = ColoresFit.Negro)
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Column {
-            Text(titulo, color = Color.Gray, fontSize = 12.sp)
-            Text(info, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp)
+            Text(titulo, color = ColoresFit.GrisTexto, fontSize = 12.sp)
+            Text(info, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -240,8 +243,8 @@ fun ItemDetalle(icono: ImageVector, titulo: String, info: String) {
 @Composable
 fun FilaRequisito(texto: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(texto, fontSize = 14.sp)
+        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ColoresFit.Verde, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(texto, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
