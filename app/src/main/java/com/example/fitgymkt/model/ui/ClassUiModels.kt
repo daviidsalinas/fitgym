@@ -4,6 +4,7 @@ data class ClassWithSchedules(
     val classId: Int,
     val className: String,
     val description: String,
+    val imageUrl: String,
     val schedules: List<ClassScheduleItem>
 )
 

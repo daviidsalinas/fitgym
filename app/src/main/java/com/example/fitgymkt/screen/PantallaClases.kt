@@ -52,6 +52,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PantallaClases(
     userId: Int,
+    unreadNotifications: Int,
     alIrAInicio: () -> Unit,
     alIrADetalle: (Int) -> Unit,
     alIrAAnalisis: () -> Unit,
@@ -87,7 +88,7 @@ fun PantallaClases(
             FitGymTopBar(
                 title = stringResource(R.string.nav_classes),
                 subtitle = stringResource(R.string.reserve_spot),
-                unreadCount = 2,
+                unreadCount = unreadNotifications,
                 onMenuClick = alAbrirMenu,
                 onNotificationsClick = alAbrirNotificaciones
             )
@@ -117,16 +118,16 @@ fun PantallaClases(
                         label = {
                             Text(
                                 diaTexto,
-                                color = if (seleccionado) Color.White else MaterialTheme.colorScheme.onSurface
+                                color = if (seleccionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                             )
                         },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (seleccionado) ColoresFit.Negro else MaterialTheme.colorScheme.surface,
-                            labelColor = if (seleccionado) Color.White else MaterialTheme.colorScheme.onSurface
+                            containerColor = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            labelColor = if (seleccionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                         ),
                         border = AssistChipDefaults.assistChipBorder(
                             enabled = true,
-                            borderColor = if (seleccionado) ColoresFit.Negro else MaterialTheme.colorScheme.outline
+                            borderColor = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                         )
                     )
                 }
@@ -162,7 +163,7 @@ fun PantallaClases(
                         titulo = clase.className,
                         subtitulo = clase.description,
                         horariosCount = stringResource(R.string.class_schedules_count, clase.schedules.size),
-                        colorBase = colorByClass(clase.className),
+                        imageUrl = clase.imageUrl,
                         estaExpandida = claseExpandida == clase.classId,
                         onExpandClick = {
                             claseExpandida = if (claseExpandida == clase.classId) null else clase.classId
@@ -176,19 +177,13 @@ fun PantallaClases(
     }
 }
 
-private fun colorByClass(className: String): Color = when {
-    className.contains("yoga", ignoreCase = true) -> Color(0xFF1F2937)
-    className.contains("pilates", ignoreCase = true) -> Color(0xFF273449)
-    else -> Color(0xFF111827)
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TarjetaClaseDesplegable(
     titulo: String,
     subtitulo: String,
     horariosCount: String,
-    colorBase: Color,
+    imageUrl: String,
     estaExpandida: Boolean,
     onExpandClick: () -> Unit,
     onHorarioClick: (Int) -> Unit,
@@ -208,13 +203,37 @@ fun TarjetaClaseDesplegable(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(164.dp)
-                    .background(colorBase)
             ) {
+                coil.compose.SubcomposeAsyncImage(
+                    model = imageUrl.ifBlank { null },
+                    contentDescription = titulo,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    loading = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = ColoresFit.Naranja)
+                        }
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(titulo.take(1).uppercase(), color = MaterialTheme.colorScheme.onSecondaryContainer, fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                )
                 Box(
                     modifier = Modifier
-                        .padding(start = 20.dp, top = 18.dp)
-                        .size(86.dp)
-                        .background(Color.White.copy(alpha = 0.06f), CircleShape)
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.42f))
                 )
                 Column(
                     modifier = Modifier
@@ -295,10 +314,10 @@ fun FilaHorario(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .background(Color.White, CircleShape),
+                    .background(MaterialTheme.colorScheme.surface, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.AccessTime, contentDescription = null, tint = ColoresFit.Negro)
+                Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {

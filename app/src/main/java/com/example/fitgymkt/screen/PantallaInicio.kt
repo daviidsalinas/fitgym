@@ -62,6 +62,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PantallaInicio(
     userId: Int,
+    unreadNotifications: Int,
     alAbrirMenu: () -> Unit,
     alAbrirNotificaciones: () -> Unit,
     alIrAClases: () -> Unit,
@@ -85,7 +86,7 @@ fun PantallaInicio(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             FitGymTopBar(
-                unreadCount = 2,
+                unreadCount = unreadNotifications,
                 onMenuClick = alAbrirMenu,
                 onNotificationsClick = alAbrirNotificaciones
             )
@@ -129,40 +130,7 @@ fun PantallaInicio(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            FitGymHeroPanel(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.next_class),
-                    color = Color.White.copy(alpha = 0.78f),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = nextClass?.className ?: stringResource(R.string.no_upcoming_classes),
-                    color = Color.White,
-                    style = MaterialTheme.typography.headlineMedium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = if (nextClass != null) "${nextClass.startTime}  •  ${nextClass.roomName}" else stringResource(R.string.see_classes),
-                    color = Color.White.copy(alpha = 0.72f),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(18.dp))
-                Button(
-                    onClick = alIrAClases,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ColoresFit.Naranja,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Text(stringResource(R.string.book_class))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-                }
-            }
+            HeroSiguienteClase(nextClass = nextClass, onVerClases = alIrAClases)
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -227,7 +195,7 @@ fun PantallaInicio(
                     nombre = nextClass.className,
                     hora = nextClass.startTime,
                     sala = nextClass.roomName,
-                    icono = iconByClass(nextClass.className)
+                    imageUrl = nextClass.imageUrl
                 )
                 Spacer(modifier = Modifier.height(22.dp))
             }
@@ -254,6 +222,92 @@ fun PantallaInicio(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun HeroSiguienteClase(
+    nextClass: com.example.fitgymkt.model.ui.TodayClassItem?,
+    onVerClases: () -> Unit
+) {
+    androidx.compose.material3.Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().height(220.dp)) {
+            coil.compose.SubcomposeAsyncImage(
+                model = nextClass?.imageUrl?.takeIf { it.isNotBlank() },
+                contentDescription = nextClass?.className ?: stringResource(R.string.next_class),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                loading = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = ColoresFit.Naranja)
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            iconByClass(nextClass?.className.orEmpty()),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(54.dp)
+                        )
+                    }
+                }
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+            )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(22.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.next_class),
+                    color = Color.White.copy(alpha = 0.78f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = nextClass?.className ?: stringResource(R.string.no_upcoming_classes),
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = if (nextClass != null) "${nextClass.startTime} - ${nextClass.roomName}" else stringResource(R.string.see_classes),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = onVerClases,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(stringResource(R.string.book_class))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                }
+            }
         }
     }
 }
@@ -303,8 +357,8 @@ private fun TarjetaRegistroEntrenamiento(
                     .height(54.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ColoresFit.Negro,
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Icon(Icons.Default.Bolt, contentDescription = null)
@@ -336,7 +390,7 @@ private fun AjustadorNumero(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             IconButton(onClick = { onChange((value - 1).coerceAtLeast(range.first)) }) {
-                Icon(Icons.Default.Remove, contentDescription = null, tint = ColoresFit.Negro)
+                Icon(Icons.Default.Remove, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(label, fontSize = 12.sp, color = ColoresFit.GrisTexto)
@@ -347,7 +401,7 @@ private fun AjustadorNumero(
                 )
             }
             IconButton(onClick = { onChange((value + 1).coerceAtMost(range.last)) }) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = ColoresFit.Negro)
+                Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -376,7 +430,7 @@ private fun CardInicioAccion(
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icono, contentDescription = null, tint = ColoresFit.Negro)
+                Icon(icono, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.height(18.dp))
             Text(titulo, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -393,7 +447,7 @@ private fun iconByClass(className: String): ImageVector = when {
 }
 
 @Composable
-fun ItemClaseHoy(nombre: String, hora: String, sala: String, icono: ImageVector) {
+fun ItemClaseHoy(nombre: String, hora: String, sala: String, imageUrl: String) {
     FitGymPanel(
         modifier = Modifier.fillMaxWidth(),
         bordered = true
@@ -408,7 +462,17 @@ fun ItemClaseHoy(nombre: String, hora: String, sala: String, icono: ImageVector)
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icono, contentDescription = null, tint = ColoresFit.Negro)
+                coil.compose.SubcomposeAsyncImage(
+                    model = imageUrl.ifBlank { null },
+                    contentDescription = nombre,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    error = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(iconByClass(nombre), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                )
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {

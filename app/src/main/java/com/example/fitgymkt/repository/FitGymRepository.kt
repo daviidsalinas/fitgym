@@ -1,6 +1,7 @@
 package com.example.fitgymkt.repository
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Patterns
 import com.example.fitgymkt.data.SupabaseRestClient
@@ -85,18 +86,16 @@ class FitGymRepository(context: Context) {
 
             val dates = groupedByDate.keys.mapNotNull { formatter.parse(it) }
             val streakDays = calculateCurrentStreak(dates, formatter)
-            val latestDate = dates.lastOrNull() ?: Date()
-
             val weeklyHours = (0..6).map { offset ->
                 val cal = Calendar.getInstance().apply {
-                    time = latestDate
+                    time = Date()
                     add(Calendar.DAY_OF_YEAR, offset - 6)
                 }
                 val key = formatter.format(cal.time)
                 (groupedByDate[key] ?: 0) / 60.0
             }
 
-            val cal = Calendar.getInstance().apply { time = latestDate }
+            val cal = Calendar.getInstance()
             val week = cal.get(Calendar.WEEK_OF_YEAR)
             val year = cal.get(Calendar.YEAR)
 
@@ -124,7 +123,7 @@ class FitGymRepository(context: Context) {
 
             ProfileData(
                 fullName = listOf(user?.optString("nombre"), user?.optString("apellidos")).joinToString(" ").trim().ifBlank { "Usuario" },
-                profilePhoto = user?.optString("fotoPerfil").orEmpty(),
+                profilePhoto = user?.optString("fotoperfil").orEmpty(),
                 email = user?.optString("email").orEmpty(),
                 phone = phone?.optString("telefono").orEmpty(),
                 age = client?.optInt("edad", 0) ?: 0,
@@ -286,6 +285,10 @@ class FitGymRepository(context: Context) {
         val notifications = mutableListOf<AppNotification>()
         val subscription = getCurrentSubscription(userId)
         val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val readIds = appContext
+            .getSharedPreferences(PREFS_NOTIFICATIONS, Context.MODE_PRIVATE)
+            .getStringSet(readKey(userId), emptySet())
+            .orEmpty()
 
         if (subscription?.endDate?.isNotBlank() == true) {
             val endDate = formatter.parse(subscription.endDate)
@@ -296,7 +299,7 @@ class FitGymRepository(context: Context) {
                     title = "Suscripción",
                     description = if (daysLeft >= 0) "Tu plan ${subscription.type} vence en $daysLeft días" else "Tu suscripción ${subscription.type} está vencida",
                     timestamp = "Hoy",
-                    read = daysLeft > 7
+                    read = daysLeft > 7 || "subscription" in readIds
                 )
             }
         }
@@ -315,11 +318,11 @@ class FitGymRepository(context: Context) {
             val classRow = schedule?.let { getSingleRow("clase", mapOf("id_clase" to eq(it.optInt("id_clase"))), "nombre") }
             if (schedule != null && classRow != null) {
                 notifications += AppNotification(
-                    id = "next-class",
+                    id = "next-class-$scheduleId",
                     title = "Clase reservada",
                     description = "${classRow.optString("nombre")} el ${schedule.optString("fecha")} a las ${schedule.optString("hora_inicio")}",
                     timestamp = "Programada",
-                    read = false
+                    read = "next-class-$scheduleId" in readIds
                 )
             }
         }
@@ -330,10 +333,18 @@ class FitGymRepository(context: Context) {
             title = "Registrar entrenamiento",
             description = "Llevas ${workoutsThisWeek} min esta semana. ¡Sigue así!",
             timestamp = "Resumen",
-            read = workoutsThisWeek >= 180
+            read = workoutsThisWeek >= 180 || "workout-reminder" in readIds
         )
 
         return notifications
+    }
+
+    fun markNotificationsRead(userId: Int, notificationIds: List<String>) {
+        if (userId <= 0) return
+        val prefs = appContext.getSharedPreferences(PREFS_NOTIFICATIONS, Context.MODE_PRIVATE)
+        val key = readKey(userId)
+        val current = prefs.getStringSet(key, emptySet()).orEmpty()
+        prefs.edit().putStringSet(key, current + notificationIds).apply()
     }
 
     fun updateProfileData(
@@ -390,20 +401,38 @@ class FitGymRepository(context: Context) {
         }.getOrElse { ActionResult.Error("No se pudo actualizar el idioma") }
     }
 
-    fun updateProfilePhoto(userId: Int, avatarKey: String): ActionResult {
-        if (avatarKey !in setOf("avatar_fire", "avatar_ocean", "avatar_forest", "avatar_midnight")) {
-            return ActionResult.Error("Avatar no válido")
-        }
-
+    fun updateProfilePhoto(userId: Int, imageUri: Uri): ActionResult {
         return runCatching {
+            val imageUrl = api.uploadPublicImage(
+                bucket = "profile-photos",
+                folder = "user-$userId",
+                imageUri = imageUri
+            )
             val updated = api.update(
                 "usuario",
                 mapOf("id_usuario" to eq(userId)),
-                JSONObject().put("fotoPerfil", avatarKey)
+                JSONObject().put("fotoperfil", imageUrl)
             )
             if (updated.length() > 0) ActionResult.Success("Foto de perfil actualizada")
             else ActionResult.Error("No se encontró el usuario")
-        }.getOrElse { ActionResult.Error("No se pudo actualizar la foto") }
+        }.getOrElse { ActionResult.Error("No se pudo actualizar la foto: ${it.message.orEmpty()}") }
+    }
+
+    fun updateProfilePhoto(userId: Int, bitmap: Bitmap): ActionResult {
+        return runCatching {
+            val imageUrl = api.uploadPublicBitmap(
+                bucket = "profile-photos",
+                folder = "user-$userId",
+                bitmap = bitmap
+            )
+            val updated = api.update(
+                "usuario",
+                mapOf("id_usuario" to eq(userId)),
+                JSONObject().put("fotoperfil", imageUrl)
+            )
+            if (updated.length() > 0) ActionResult.Success("Foto de perfil actualizada")
+            else ActionResult.Error("No se encontró el usuario")
+        }.getOrElse { ActionResult.Error("No se pudo actualizar la foto: ${it.message.orEmpty()}") }
     }
 
     fun updateProfileNotifications(userId: Int, enabled: Boolean): ActionResult {
@@ -478,6 +507,7 @@ class FitGymRepository(context: Context) {
                     classId = classId,
                     className = classRow.optString("nombre"),
                     description = classRow.optString("descripcion"),
+                    imageUrl = classRow.optString("imagen_url"),
                     schedules = items
                 )
             }.sortedBy { it.className }
@@ -555,7 +585,7 @@ class FitGymRepository(context: Context) {
             .put("email", email)
             .put("rol", "cliente")
             .put("activo", true)
-            .put("fotoPerfil", "")
+            .put("fotoperfil", "")
 
         val inferredField = resolvePasswordFieldForUserTable()
         val passwordCandidates = buildList {
@@ -795,12 +825,13 @@ class FitGymRepository(context: Context) {
     private fun getTodayClassItem(scheduleId: Int): TodayClassItem? {
         if (scheduleId <= 0) return null
         val schedule = getSingleRow("horario_clase", mapOf("id_horario" to eq(scheduleId))) ?: return null
-        val classRow = getSingleRow("clase", mapOf("id_clase" to eq(schedule.optInt("id_clase"))), "nombre")
+        val classRow = getSingleRow("clase", mapOf("id_clase" to eq(schedule.optInt("id_clase"))), "nombre,imagen_url")
         val room = getSingleRow("sala", mapOf("id_sala" to eq(schedule.optInt("id_sala"))), "nombre_sala")
         return TodayClassItem(
             className = classRow?.optString("nombre").orEmpty(),
             startTime = schedule.optString("hora_inicio"),
-            roomName = room?.optString("nombre_sala").orEmpty()
+            roomName = room?.optString("nombre_sala").orEmpty(),
+            imageUrl = classRow?.optString("imagen_url").orEmpty()
         )
     }
 
@@ -891,6 +922,7 @@ class FitGymRepository(context: Context) {
     private fun eq(value: Any): String = "eq.$value"
     private fun neq(value: Any): String = "neq.$value"
     private fun inList(vararg values: String): String = "in.(${values.joinToString(",")})"
+    private fun readKey(userId: Int): String = "read_notifications_$userId"
 
     private fun resolvePasswordFieldForUserTable(): String? =
         getSingleRow(
@@ -922,3 +954,5 @@ sealed class ActionResult {
     data class Success(val message: String) : ActionResult()
     data class Error(val message: String) : ActionResult()
 }
+
+private const val PREFS_NOTIFICATIONS = "fitgym_notifications_prefs"

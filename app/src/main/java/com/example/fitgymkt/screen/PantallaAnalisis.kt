@@ -52,6 +52,7 @@ import java.util.Locale
 @Composable
 fun PantallaAnalisis(
     userId: Int,
+    unreadNotifications: Int,
     alIrAInicio: () -> Unit,
     alIrAClases: () -> Unit,
     alIrAPerfil: () -> Unit,
@@ -77,7 +78,7 @@ fun PantallaAnalisis(
             FitGymTopBar(
                 title = stringResource(R.string.analysis_title),
                 subtitle = stringResource(R.string.analysis_subtitle),
-                unreadCount = 2,
+                unreadCount = unreadNotifications,
                 onMenuClick = alAbrirMenu,
                 onNotificationsClick = alAbrirNotificaciones
             )
@@ -212,7 +213,7 @@ fun PantallaAnalisis(
                                         .width(28.dp)
                                         .fillMaxHeight(altura)
                                         .background(
-                                            color = if (dailyHours == maxValue) ColoresFit.Negro else ColoresFit.Negro.copy(alpha = 0.28f),
+                                            color = if (dailyHours == maxValue) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
                                             shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                                         )
                                 )
@@ -308,7 +309,7 @@ fun PantallaAnalisis(
                             .fillMaxWidth()
                             .height(54.dp),
                         shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ColoresFit.Negro, contentColor = Color.White)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                     ) {
                         Icon(Icons.Default.Bolt, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))

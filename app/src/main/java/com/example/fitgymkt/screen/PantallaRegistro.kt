@@ -211,14 +211,14 @@ fun PantallaRegistro(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = com.example.fitgymkt.ui.theme.ColoresFit.Negro),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                         shape = RoundedCornerShape(20.dp),
                         enabled = !cargando
                     ) {
                         if (cargando) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                         } else {
-                            Text(stringResource(R.string.create_account), color = Color.White, style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.create_account), color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge)
                         }
                     }
 

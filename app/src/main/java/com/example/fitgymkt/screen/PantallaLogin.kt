@@ -87,13 +87,13 @@ fun PantallaLogin(
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .background(ColoresFit.Negro, RoundedCornerShape(24.dp)),
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.FitnessCenter,
                     contentDescription = stringResource(R.string.logo_fitgym),
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -195,20 +195,20 @@ fun PantallaLogin(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ColoresFit.Negro),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                         shape = RoundedCornerShape(20.dp),
                         enabled = !cargando
                     ) {
                         if (cargando) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.dp
                             )
                         } else {
                             Text(
                                 text = stringResource(R.string.login_title),
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
@@ -255,10 +255,10 @@ fun FitGymLoginField(
             Box(
                 modifier = Modifier
                     .size(34.dp)
-                    .background(Color.White, CircleShape),
+                    .background(MaterialTheme.colorScheme.surface, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(leadingIcon, contentDescription = null, tint = ColoresFit.AzulFit, modifier = Modifier.size(18.dp))
+                Icon(leadingIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
         },
         trailingIcon = trailingIcon,
@@ -268,7 +268,7 @@ fun FitGymLoginField(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedBorderColor = ColoresFit.Negro,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = Color.Transparent,
             disabledBorderColor = Color.Transparent,
             focusedTextColor = MaterialTheme.colorScheme.onSurface,

@@ -11,5 +11,6 @@ data class HomeData(
 data class TodayClassItem(
     val className: String,
     val startTime: String,
-    val roomName: String
+    val roomName: String,
+    val imageUrl: String
 )

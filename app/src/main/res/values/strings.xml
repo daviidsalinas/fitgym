@@ -146,6 +146,9 @@
     <string name="profile_change_credentials">Cambiar credenciales</string>
     <string name="profile_view_info">Ver información</string>
     <string name="profile_photo_desc">Foto de perfil</string>
+    <string name="profile_change_photo">Cambiar foto de perfil</string>
+    <string name="profile_pick_from_gallery">Elegir foto de galería</string>
+    <string name="profile_edit_hint">Actualiza el valor y guarda los cambios.</string>
     <string name="profile_edit_email">Editar email</string>
     <string name="profile_edit_phone">Editar teléfono</string>
     <string name="profile_edit_age">Editar edad</string>
@@ -175,6 +178,8 @@
     <string name="admin_users_short">Usuarios</string>
     <string name="admin_management_title">Gestión</string>
     <string name="admin_management_subtitle">Catálogo, horarios y reservas en una sola vista.</string>
+    <string name="admin_management_classes_schedule_hint">Gestiona cada clase desde su tarjeta y crea horarios directamente para esa clase.</string>
+    <string name="admin_filter_classes_placeholder">Filtrar clase</string>
     <string name="admin_classes_title">Clases</string>
     <string name="admin_classes_short">Clases</string>
     <string name="admin_schedules_title">Horarios</string>
@@ -197,6 +202,9 @@
     <string name="admin_change_image">Cambiar imagen</string>
     <string name="admin_schedules_summary">%1$d horarios activos listados</string>
     <string name="admin_create_schedule">Añadir horario</string>
+    <string name="admin_create_schedule_short">Horario</string>
+    <string name="admin_no_schedules_for_class">Esta clase todavía no tiene horarios.</string>
+    <string name="admin_view_schedules">Ver todos los horarios (%1$d)</string>
     <string name="admin_schedule_class">Clase</string>
     <string name="admin_schedule_date">Fecha</string>
     <string name="admin_schedule_start_time">Hora de inicio</string>

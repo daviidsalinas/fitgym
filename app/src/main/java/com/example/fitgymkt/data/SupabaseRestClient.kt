@@ -2,6 +2,7 @@ package com.example.fitgymkt.data
 
 import android.content.Context
 import android.content.ContentResolver
+import android.graphics.Bitmap
 import android.net.Uri
 import com.example.fitgymkt.BuildConfig
 import org.json.JSONArray
@@ -138,6 +139,62 @@ class SupabaseRestClient(context: Context) {
 
         try {
             connection.outputStream.use { output -> output.write(bytes) }
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+            val payload = stream?.bufferedReader(Charsets.UTF_8)?.use(BufferedReader::readText).orEmpty()
+            if (responseCode !in 200..299) {
+                throw IllegalStateException("Supabase storage error ($responseCode): $payload")
+            }
+        } finally {
+            connection.disconnect()
+        }
+
+        return "$baseUrl/storage/v1/object/public/$bucket/$objectPath"
+    }
+
+    fun uploadPublicBitmap(
+        bucket: String,
+        folder: String,
+        bitmap: Bitmap
+    ): String {
+        val output = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
+        return uploadPublicBytes(
+            bucket = bucket,
+            folder = folder,
+            bytes = output.toByteArray(),
+            mimeType = "image/jpeg",
+            extension = "jpg"
+        )
+    }
+
+    private fun uploadPublicBytes(
+        bucket: String,
+        folder: String,
+        bytes: ByteArray,
+        mimeType: String,
+        extension: String
+    ): String {
+        check(isConfigured()) { "Supabase no está configurado" }
+
+        val fileName = "${System.currentTimeMillis()}_${UUID.randomUUID()}.$extension"
+        val objectPath = listOf(folder.trim('/'), fileName).filter { it.isNotBlank() }.joinToString("/")
+        val uploadUrl = "$baseUrl/storage/v1/object/$bucket/$objectPath"
+
+        val connection = (URL(uploadUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15000
+            readTimeout = 15000
+            doInput = true
+            doOutput = true
+            setRequestProperty("apikey", anonKey)
+            setRequestProperty("Authorization", "Bearer $anonKey")
+            setRequestProperty("Content-Type", mimeType)
+            setRequestProperty("x-upsert", "true")
+        }
+
+        try {
+            connection.outputStream.use { outputStream -> outputStream.write(bytes) }
             val responseCode = connection.responseCode
             val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
             val payload = stream?.bufferedReader(Charsets.UTF_8)?.use(BufferedReader::readText).orEmpty()

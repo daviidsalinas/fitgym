@@ -1,5 +1,7 @@
 package com.example.fitgymkt.screen
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -9,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
@@ -21,6 +25,8 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Straighten
@@ -37,6 +43,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +68,8 @@ import com.example.fitgymkt.model.ui.ProfileData
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.ui.theme.ColoresFit
+import coil.compose.SubcomposeAsyncImage
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,6 +115,36 @@ fun PantallaPerfil(
         mutableStateOf(profileData?.notificationsEnabled ?: true)
     }
     var campoEnEdicion by remember { mutableStateOf<PerfilCampoEditable?>(null) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                when (val result = withContext(Dispatchers.IO) { repository.updateProfilePhoto(userId, uri) }) {
+                    is ActionResult.Success -> {
+                        snackbarHostState.showSnackbar(result.message)
+                        refreshKey++
+                    }
+                    is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                }
+            }
+        }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap != null) {
+            scope.launch {
+                when (val result = withContext(Dispatchers.IO) { repository.updateProfilePhoto(userId, bitmap) }) {
+                    is ActionResult.Success -> {
+                        snackbarHostState.showSnackbar(result.message)
+                        refreshKey++
+                    }
+                    is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                }
+            }
+        }
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) cameraLauncher.launch(null)
+        else scope.launch { snackbarHostState.showSnackbar("Permiso de cámara denegado") }
+    }
 
     if (profileData == null) {
         Scaffold(
@@ -242,9 +282,37 @@ fun PantallaPerfil(
         ) {
             FitGymHeroPanel(modifier = Modifier.fillMaxWidth(), accent = ColoresFit.Naranja) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FotoPerfil(profilePhoto = data.profilePhoto, size = 82.dp)
+                    Box {
+                        FotoPerfil(profilePhoto = data.profilePhoto, size = 82.dp)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .size(30.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .clickable { photoPicker.launch("image/*") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = stringResource(R.string.profile_pick_from_gallery), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(30.dp)
+                                .background(ColoresFit.Naranja, CircleShape)
+                                .clickable {
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                                        cameraLauncher.launch(null)
+                                    } else {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = stringResource(R.string.profile_change_photo), tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
                     Spacer(modifier = Modifier.width(16.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(data.fullName, style = MaterialTheme.typography.headlineMedium, color = Color.White)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(nombreIdioma(code = data.language), color = Color.White.copy(alpha = 0.74f), style = MaterialTheme.typography.bodyMedium)
@@ -365,7 +433,22 @@ private fun FotoPerfil(profilePhoto: String, size: androidx.compose.ui.unit.Dp =
             .background(fallbackColor),
         contentAlignment = Alignment.Center
     ) {
-        if (profilePhoto.isNotBlank() && resourceId != 0) {
+        if (profilePhoto.startsWith("http", ignoreCase = true)) {
+            SubcomposeAsyncImage(
+                model = profilePhoto,
+                contentDescription = stringResource(R.string.profile_photo_desc),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                loading = {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = Color.White)
+                    }
+                },
+                error = {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
+                }
+            )
+        } else if (profilePhoto.isNotBlank() && resourceId != 0) {
             Image(
                 painter = painterResource(id = resourceId),
                 contentDescription = stringResource(R.string.profile_photo_desc),
@@ -395,20 +478,34 @@ private fun DialogoEditarCampo(
 
     var valor by remember(campo, data) { mutableStateOf(valorActual) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = { onGuardar(valor.trim()) }) { Text(stringResource(R.string.save)) } },
-        dismissButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        title = { Text(titulo) },
-        text = {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        FitGymPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            bordered = true
+        ) {
+            Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.profile_edit_hint), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             OutlinedTextField(
                 value = valor,
                 onValueChange = { valor = filtro(it) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp)
             )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onDismiss, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(onClick = { onGuardar(valor.trim()) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
+                        Text(stringResource(R.string.save))
+                    }
+                }
+            }
         }
-    )
+    }
 }
 
 @Composable
@@ -419,18 +516,28 @@ private fun DialogoCambiarPassword(
     var actual by remember { mutableStateOf("") }
     var nueva by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = { onGuardar(actual, nueva) }) { Text(stringResource(R.string.update)) } },
-        dismissButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        title = { Text(stringResource(R.string.update_password)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = actual, onValueChange = { actual = it }, label = { Text(stringResource(R.string.current_password)) }, singleLine = true)
-                OutlinedTextField(value = nueva, onValueChange = { nueva = it }, label = { Text(stringResource(R.string.new_password)) }, singleLine = true)
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        FitGymPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            bordered = true
+        ) {
+            Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(stringResource(R.string.update_password), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = actual, onValueChange = { actual = it }, label = { Text(stringResource(R.string.current_password)) }, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nueva, onValueChange = { nueva = it }, label = { Text(stringResource(R.string.new_password)) }, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onDismiss, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(onClick = { onGuardar(actual, nueva) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
+                        Text(stringResource(R.string.update))
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -441,19 +548,23 @@ private fun DialogoCambiarIdioma(
 ) {
     val idiomas = listOf("ES", "EN", "DE", "PT")
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-        title = { Text(stringResource(R.string.profile_select_language)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        FitGymPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            bordered = true
+        ) {
+            Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.profile_select_language), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 idiomas.forEach { code ->
                     val seleccionado = code == idiomaActual.uppercase(Locale.ROOT)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(if (seleccionado) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent, RoundedCornerShape(16.dp))
                             .clickable { onSeleccionar(code) }
-                            .padding(vertical = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(nombreIdioma(code = code), modifier = Modifier.weight(1f))
@@ -462,19 +573,32 @@ private fun DialogoCambiarIdioma(
                         }
                     }
                 }
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
 private fun DialogoPrivacidad(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.understood)) } },
-        title = { Text(stringResource(R.string.data_control)) },
-        text = { Text(stringResource(R.string.data_control_body)) }
-    )
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        FitGymPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            bordered = true
+        ) {
+            Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(stringResource(R.string.data_control), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.data_control_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
+                    Text(stringResource(R.string.understood))
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -520,7 +644,7 @@ fun ItemPerfil(
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icono, contentDescription = null, tint = ColoresFit.Negro, modifier = Modifier.size(18.dp))
+            Icon(icono, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -547,7 +671,7 @@ fun ItemConfiguracion(icono: ImageVector, titulo: String, subtitulo: String, con
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icono, contentDescription = null, tint = ColoresFit.Negro, modifier = Modifier.size(18.dp))
+            Icon(icono, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {

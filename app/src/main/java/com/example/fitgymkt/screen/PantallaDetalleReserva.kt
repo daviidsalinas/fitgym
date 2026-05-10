@@ -59,6 +59,7 @@ import kotlinx.coroutines.withContext
 fun PantallaDetalleReserva(
     userId: Int,
     scheduleId: Int,
+    unreadNotifications: Int,
     alAbrirMenu: () -> Unit,
     alAbrirNotificaciones: () -> Unit,
     alVolverAClases: () -> Unit,
@@ -85,7 +86,7 @@ fun PantallaDetalleReserva(
         topBar = {
             FitGymTopBar(
                 onBackClick = alVolverAClases,
-                unreadCount = 2,
+                unreadCount = unreadNotifications,
                 onNotificationsClick = alAbrirNotificaciones
             )
         },
@@ -178,7 +179,7 @@ fun PantallaDetalleReserva(
                 containerColor = ColoresFit.NaranjaSuave
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text(stringResource(R.string.cancellation_policy), style = MaterialTheme.typography.titleMedium, color = ColoresFit.Negro)
+                Text(stringResource(R.string.cancellation_policy), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         stringResource(R.string.cancellation_policy_body),
@@ -205,14 +206,14 @@ fun PantallaDetalleReserva(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ColoresFit.Negro),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                 shape = RoundedCornerShape(20.dp),
                 enabled = !reservando && scheduleId > 0
             ) {
                 if (reservando) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Text(stringResource(R.string.book_spot), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(stringResource(R.string.book_spot), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -230,7 +231,7 @@ fun ItemDetalle(icono: ImageVector, titulo: String, info: String) {
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icono, contentDescription = null, tint = ColoresFit.Negro)
+            Icon(icono, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column {

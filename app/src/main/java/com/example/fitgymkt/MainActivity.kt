@@ -107,16 +107,21 @@ class MainActivity : ComponentActivity() {
                     DialogoNotificacionesGlobal(
                         notificaciones = notificaciones,
                         onDismiss = { mostrarNotificaciones = false },
-                        onMarcarLeidas = { notificaciones = notificaciones.map { it.copy(read = true) } }
+                        onMarcarLeidas = {
+                            usuarioSesion?.userId?.let { userId ->
+                                repository.markNotificationsRead(userId, notificaciones.map { it.id })
+                            }
+                            notificaciones = notificaciones.map { it.copy(read = true) }
+                        }
                     )
                 }
 
                 if (mostrarSuscripcion) {
-                    DialogoSuscripcionGlobal(suscripcion = suscripcion, onDismiss = { mostrarSuscripcion = false })
+                    DialogoSuscripcionGlobalFit(suscripcion = suscripcion, onDismiss = { mostrarSuscripcion = false })
                 }
 
                 if (mostrarContacto) {
-                    DialogoContactoSoporte(onDismiss = { mostrarContacto = false })
+                    DialogoContactoSoporteFit(onDismiss = { mostrarContacto = false })
                 }
 
                 ModalNavigationDrawer(
@@ -249,6 +254,7 @@ fun NavegacionPrincipal(
         composable("inicio") {
             PantallaInicio(
                 userId = usuarioSesion?.userId ?: 1,
+                unreadNotifications = unreadNotifications,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAClases = { controladorNavegacion.navigate("clases") },
@@ -260,6 +266,7 @@ fun NavegacionPrincipal(
         composable("clases") {
             PantallaClases(
                 userId = usuarioSesion?.userId ?: 1,
+                unreadNotifications = unreadNotifications,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
@@ -271,6 +278,7 @@ fun NavegacionPrincipal(
         composable("analisis") {
             PantallaAnalisis(
                 userId = usuarioSesion?.userId ?: 1,
+                unreadNotifications = unreadNotifications,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alIrAInicio = { controladorNavegacion.navigate("inicio") },
@@ -305,6 +313,7 @@ fun NavegacionPrincipal(
             PantallaDetalleReserva(
                 userId = usuarioSesion?.userId ?: 1,
                 scheduleId = backStackEntry.arguments?.getString("scheduleId")?.toIntOrNull() ?: -1,
+                unreadNotifications = unreadNotifications,
                 alAbrirMenu = alAbrirMenu,
                 alAbrirNotificaciones = alAbrirNotificaciones,
                 alVolverAClases = { controladorNavegacion.popBackStack() },
@@ -367,10 +376,10 @@ fun DialogoNotificacionesGlobal(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .background(ColoresFit.Negro, RoundedCornerShape(16.dp)),
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Notifications, null, tint = Color.White)
+                        Icon(Icons.Default.Notifications, null, tint = MaterialTheme.colorScheme.onPrimary)
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -385,7 +394,7 @@ fun DialogoNotificacionesGlobal(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColoresFit.Negro, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                     shape = RoundedCornerShape(18.dp)
                 ) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
@@ -414,7 +423,7 @@ fun ItemNoti(titulo: String, desc: String, tiempo: String, esNueva: Boolean) {
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.NotificationsActive, null, tint = ColoresFit.Negro, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.NotificationsActive, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -456,10 +465,10 @@ fun ContenidoMenuLateral(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(60.dp).background(ColoresFit.Negro, CircleShape),
+                    modifier = Modifier.size(60.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                    Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(30.dp))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
@@ -509,10 +518,10 @@ fun ItemMenuLateral(icono: ImageVector, texto: String, onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(Color.White, RoundedCornerShape(12.dp)),
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icono, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+            Icon(icono, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.width(14.dp))
         Text(texto, fontSize = 16.sp, fontWeight = FontWeight.Medium)
@@ -542,4 +551,42 @@ fun DialogoContactoSoporte(onDismiss: () -> Unit) {
         title = { Text(stringResource(R.string.contact_support)) },
         text = { Text(stringResource(R.string.contact_support_body)) }
     )
+}
+
+@Composable
+fun DialogoSuscripcionGlobalFit(suscripcion: SubscriptionStatus?, onDismiss: () -> Unit) {
+    FitGymDialogPanel(onDismiss = onDismiss) {
+        Text(stringResource(R.string.subscription), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            suscripcion?.let { stringResource(R.string.subscription_plan_status, it.type, it.status, it.endDate) }
+                ?: stringResource(R.string.no_active_subscription),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(18.dp))
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+        ) {
+            Text(stringResource(R.string.close))
+        }
+    }
+}
+
+@Composable
+fun DialogoContactoSoporteFit(onDismiss: () -> Unit) {
+    FitGymDialogPanel(onDismiss = onDismiss) {
+        Text(stringResource(R.string.contact_support), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.contact_support_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(18.dp))
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+        ) {
+            Text(stringResource(R.string.close))
+        }
+    }
 }
