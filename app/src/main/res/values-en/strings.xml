@@ -213,4 +213,12 @@ Hours: Mon-Fri 07:00 to 22:00</string>
     <string name="admin_classes_placeholder">Here we will build the classes CRUD: create, edit and deactivate.</string>
     <string name="admin_schedules_placeholder">Here we will connect schedule, instructor, room and capacity management.</string>
     <string name="admin_bookings_placeholder">Here you will see bookings by class and control actions.</string>
+    <string name="profile_change_photo">Change profile picture</string>
+    <string name="profile_pick_from_gallery">Choose photo from gallery</string>
+    <string name="profile_edit_hint">Update the value and save the changes.</string>
+    <string name="admin_management_classes_schedule_hint">Manage each class from its card and create schedules directly for that class.</string>
+    <string name="admin_filter_classes_placeholder">Filter class</string>
+    <string name="admin_create_schedule_short">Schedule</string>
+    <string name="admin_no_schedules_for_class">This class does not have schedules yet.</string>
+    <string name="admin_view_schedules">View all schedules (%1$d)</string>
 </resources>

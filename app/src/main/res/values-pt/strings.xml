@@ -208,4 +208,12 @@
     <string name="admin_classes_placeholder">Aqui vamos implementar o CRUD de aulas: criação, edição e desativação.</string>
     <string name="admin_schedules_placeholder">Aqui vamos conectar a gestão de horários, instrutores, salas e vagas.</string>
     <string name="admin_bookings_placeholder">Aqui você verá as reservas por aula e ações de controle.</string>
+    <string name="profile_change_photo">Alterar foto de perfil</string>
+    <string name="profile_pick_from_gallery">Escolher foto da galeria</string>
+    <string name="profile_edit_hint">Atualize o valor e salve as alterações.</string>
+    <string name="admin_management_classes_schedule_hint">Gerencie cada aula pelo seu cartão e crie horários diretamente para essa aula.</string>
+    <string name="admin_filter_classes_placeholder">Filtrar aula</string>
+    <string name="admin_create_schedule_short">Horário</string>
+    <string name="admin_no_schedules_for_class">Esta aula ainda não possui horários.</string>
+    <string name="admin_view_schedules">Ver todos os horários (%1$d)</string>
 </resources>

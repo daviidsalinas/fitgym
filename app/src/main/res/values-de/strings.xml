@@ -208,4 +208,12 @@
     <string name="admin_classes_placeholder">Hier erstellen wir das CRUD für Kurse: erstellen, bearbeiten und deaktivieren.</string>
     <string name="admin_schedules_placeholder">Hier verbinden wir die Verwaltung von Zeitplänen, Trainern, Räumen und Kapazitäten.</string>
     <string name="admin_bookings_placeholder">Hier sehen Sie Buchungen nach Kurs und Steuerungsaktionen.</string>
+    <string name="profile_change_photo">Profilbild ändern</string>
+    <string name="profile_pick_from_gallery">Foto aus Galerie auswählen</string>
+    <string name="profile_edit_hint">Wert aktualisieren und Änderungen speichern.</string>
+    <string name="admin_management_classes_schedule_hint">Verwalten Sie jede Klasse über ihre Karte und erstellen Sie direkt Zeitpläne für diese Klasse.</string>
+    <string name="admin_filter_classes_placeholder">Klasse filtern</string>
+    <string name="admin_create_schedule_short">Zeitplan</string>
+    <string name="admin_no_schedules_for_class">Diese Klasse hat noch keine Zeitpläne.</string>
+    <string name="admin_view_schedules">Alle Zeitpläne anzeigen (%1$d)</string>
 </resources>
