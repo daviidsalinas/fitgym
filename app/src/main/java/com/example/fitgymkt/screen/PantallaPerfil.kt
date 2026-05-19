@@ -2,6 +2,7 @@ package com.example.fitgymkt.screen
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -106,15 +107,34 @@ fun PantallaPerfil(
     var refreshKey by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var notificationPermissionGranted by remember { mutableStateOf(hasNotificationPermission(context)) }
 
     val profileData by produceState<ProfileData?>(initialValue = null, userId, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getProfileData(userId) }
     }
 
-    var notificacionesInternas by remember(profileData?.notificationsEnabled) {
-        mutableStateOf(profileData?.notificationsEnabled ?: true)
+    var notificacionesInternas by remember(profileData?.notificationsEnabled, notificationPermissionGranted) {
+        mutableStateOf((profileData?.notificationsEnabled ?: true) && notificationPermissionGranted)
     }
     var campoEnEdicion by remember { mutableStateOf<PerfilCampoEditable?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notificationPermissionGranted = granted
+        notificacionesInternas = granted
+        scope.launch {
+            if (granted) {
+                when (val result = withContext(Dispatchers.IO) { repository.updateProfileNotifications(userId, true) }) {
+                    is ActionResult.Success -> snackbarHostState.showSnackbar(result.message)
+                    is ActionResult.Error -> {
+                        notificacionesInternas = false
+                        snackbarHostState.showSnackbar(result.message)
+                    }
+                }
+            } else {
+                withContext(Dispatchers.IO) { repository.updateProfileNotifications(userId, false) }
+                snackbarHostState.showSnackbar("Permiso de notificaciones denegado")
+            }
+        }
+    }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             scope.launch {
@@ -127,6 +147,10 @@ fun PantallaPerfil(
                 }
             }
         }
+    }
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) photoPicker.launch("image/*")
+        else scope.launch { snackbarHostState.showSnackbar("Permiso de galería denegado") }
     }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) {
@@ -289,7 +313,16 @@ fun PantallaPerfil(
                                 .align(Alignment.BottomStart)
                                 .size(30.dp)
                                 .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                                .clickable { photoPicker.launch("image/*") },
+                                .clickable {
+                                    val galleryPermission = galleryImagesPermission()
+                                    if (galleryPermission == null ||
+                                        ContextCompat.checkSelfPermission(context, galleryPermission) == PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        photoPicker.launch("image/*")
+                                    } else {
+                                        galleryPermissionLauncher.launch(galleryPermission)
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.PhotoLibrary, contentDescription = stringResource(R.string.profile_pick_from_gallery), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
@@ -356,13 +389,19 @@ fun PantallaPerfil(
                     Switch(
                         checked = notificacionesInternas,
                         onCheckedChange = { enabled ->
-                            notificacionesInternas = enabled
-                            scope.launch {
-                                when (val result = withContext(Dispatchers.IO) { repository.updateProfileNotifications(userId, enabled) }) {
-                                    is ActionResult.Success -> snackbarHostState.showSnackbar(result.message)
-                                    is ActionResult.Error -> {
-                                        notificacionesInternas = !enabled
-                                        snackbarHostState.showSnackbar(result.message)
+                            if (enabled && !hasNotificationPermission(context)) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            } else {
+                                notificacionesInternas = enabled
+                                scope.launch {
+                                    when (val result = withContext(Dispatchers.IO) { repository.updateProfileNotifications(userId, enabled) }) {
+                                        is ActionResult.Success -> snackbarHostState.showSnackbar(result.message)
+                                        is ActionResult.Error -> {
+                                            notificacionesInternas = !enabled
+                                            snackbarHostState.showSnackbar(result.message)
+                                        }
                                     }
                                 }
                             }
@@ -404,6 +443,16 @@ fun PantallaPerfil(
             Spacer(modifier = Modifier.height(12.dp))
         }
     }
+}
+
+private fun hasNotificationPermission(context: android.content.Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+private fun galleryImagesPermission(): String? = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> Manifest.permission.READ_MEDIA_IMAGES
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> Manifest.permission.READ_EXTERNAL_STORAGE
+    else -> null
 }
 
 @Composable

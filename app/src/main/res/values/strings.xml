@@ -79,6 +79,8 @@
     <string name="logout">Cerrar sesión</string>
     <string name="menu">Menú</string>
     <string name="close">Cerrar</string>
+    <string name="edit">Editar</string>
+    <string name="delete">Eliminar</string>
     <string name="unread_count">%1$d sin leer</string>
     <string name="mark_all_as_read">Marcar todas como leídas</string>
     <string name="subscription">Suscripción</string>
@@ -113,7 +115,7 @@
     <string name="analysis_remaining_hours">%1$.1fh restantes</string>
     <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Actividad semanal</string>
-    <string name="analysis_last_7_days">Últimos 7 días</string>
+    <string name="analysis_last_7_days">Semana actual</string>
     <string name="analysis_total">Total</string>
     <string name="analysis_daily_average">Promedio diario</string>
     <string name="analysis_minutes_value">%1$d min</string>
@@ -204,11 +206,18 @@
     <string name="admin_create_schedule">Añadir horario</string>
     <string name="admin_create_schedule_short">Horario</string>
     <string name="admin_no_schedules_for_class">Esta clase todavía no tiene horarios.</string>
-    <string name="admin_view_schedules">Ver todos los horarios (%1$d)</string>
+    <string name="admin_schedule_filter_all">Todos los horarios</string>
+    <string name="admin_schedule_filter_future">Horarios futuros</string>
+    <string name="admin_view_schedules">Ver horarios (%1$d)</string>
+    <string name="admin_manage_schedule">Gestionar horario</string>
+    <string name="admin_delete_schedule">Eliminar horario</string>
+    <string name="admin_delete_schedule_warning">Se eliminará %1$s del %2$s a las %3$s y sus reservas asociadas. Esta acción no se puede deshacer.</string>
     <string name="admin_schedule_class">Clase</string>
     <string name="admin_schedule_date">Fecha</string>
     <string name="admin_schedule_start_time">Hora de inicio</string>
     <string name="admin_schedule_duration">Duración (min)</string>
+    <string name="admin_schedule_total_slots">Plazas totales</string>
+    <string name="admin_schedule_reserved_slots_hint">Reservas activas ahora: %1$d</string>
     <string name="admin_schedule_defaults_hint">Sala, monitor y plazas se asignan automáticamente con los valores predefinidos disponibles.</string>
     <string name="admin_bookings_summary">%1$d reservas registradas</string>
     <string name="admin_status_active">Activo</string>

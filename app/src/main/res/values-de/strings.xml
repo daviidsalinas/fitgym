@@ -83,6 +83,8 @@
     <string name="book_spot">Platz buchen</string>
     <string name="menu">Menü</string>
     <string name="close">Schließen</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="delete">Löschen</string>
     <string name="unread_count">%1$d ungelesen</string>
     <string name="mark_all_as_read">Alle als gelesen markieren</string>
     <string name="subscription">Abonnement</string>
@@ -102,7 +104,7 @@
     <string name="analysis_remaining_hours">%1$.1fh verbleibend</string>
     <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Wöchentliche Aktivität</string>
-    <string name="analysis_last_7_days">Letzte 7 Tage</string>
+    <string name="analysis_last_7_days">Aktuelle Woche</string>
     <string name="analysis_total">Gesamt</string>
     <string name="analysis_daily_average">Tagesdurchschnitt</string>
     <string name="analysis_minutes_value">%1$d Min</string>
@@ -215,5 +217,12 @@
     <string name="admin_filter_classes_placeholder">Klasse filtern</string>
     <string name="admin_create_schedule_short">Zeitplan</string>
     <string name="admin_no_schedules_for_class">Diese Klasse hat noch keine Zeitpläne.</string>
-    <string name="admin_view_schedules">Alle Zeitpläne anzeigen (%1$d)</string>
+    <string name="admin_schedule_filter_all">Alle Zeitpläne</string>
+    <string name="admin_schedule_filter_future">Zukünftige Zeitpläne</string>
+    <string name="admin_view_schedules">Zeitpläne anzeigen (%1$d)</string>
+    <string name="admin_manage_schedule">Zeitplan verwalten</string>
+    <string name="admin_delete_schedule">Zeitplan löschen</string>
+    <string name="admin_delete_schedule_warning">%1$s am %2$s um %3$s und die zugehörigen Buchungen werden gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="admin_schedule_total_slots">Gesamtplätze</string>
+    <string name="admin_schedule_reserved_slots_hint">Aktive Buchungen jetzt: %1$d</string>
 </resources>

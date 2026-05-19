@@ -11,6 +11,8 @@ data class ClassWithSchedules(
 data class ClassScheduleItem(
     val scheduleId: Int,
     val time: String,
+    val date: String,
+    val dateLabel: String,
     val weekDay: String,
     val occupiedSlots: Int,
     val totalSlots: Int,

@@ -83,6 +83,8 @@
     <string name="book_spot">Book spot</string>
     <string name="menu">Menu</string>
     <string name="close">Close</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
     <string name="unread_count">%1$d unread</string>
     <string name="mark_all_as_read">Mark all as read</string>
     <string name="subscription">Subscription</string>
@@ -107,7 +109,7 @@ Hours: Mon-Fri 07:00 to 22:00</string>
     <string name="analysis_remaining_hours">%1$.1fh remaining</string>
     <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Weekly activity</string>
-    <string name="analysis_last_7_days">Last 7 days</string>
+    <string name="analysis_last_7_days">Current week</string>
     <string name="analysis_total">Total</string>
     <string name="analysis_daily_average">Daily average</string>
     <string name="analysis_minutes_value">%1$d min</string>
@@ -220,5 +222,12 @@ Hours: Mon-Fri 07:00 to 22:00</string>
     <string name="admin_filter_classes_placeholder">Filter class</string>
     <string name="admin_create_schedule_short">Schedule</string>
     <string name="admin_no_schedules_for_class">This class does not have schedules yet.</string>
-    <string name="admin_view_schedules">View all schedules (%1$d)</string>
+    <string name="admin_schedule_filter_all">All schedules</string>
+    <string name="admin_schedule_filter_future">Future schedules</string>
+    <string name="admin_view_schedules">View schedules (%1$d)</string>
+    <string name="admin_manage_schedule">Manage schedule</string>
+    <string name="admin_delete_schedule">Delete schedule</string>
+    <string name="admin_delete_schedule_warning">%1$s on %2$s at %3$s and its related bookings will be deleted. This action cannot be undone.</string>
+    <string name="admin_schedule_total_slots">Total slots</string>
+    <string name="admin_schedule_reserved_slots_hint">Active bookings now: %1$d</string>
 </resources>

@@ -474,7 +474,8 @@ fun ContenidoMenuLateral(
                 Column {
                     Text(nombreUsuario, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
-                        subscription?.let { stringResource(R.string.subscription_expires, it.endDate) }
+                        subscription?.takeIf { it.status.equals("Activa", ignoreCase = true) }
+                            ?.let { stringResource(R.string.subscription_expires, it.endDate) }
                             ?: stringResource(R.string.no_active_subscription),
                         fontSize = 12.sp,
                         color = ColoresFit.GrisTexto

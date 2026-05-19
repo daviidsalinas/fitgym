@@ -276,7 +276,7 @@ fun TarjetaClaseDesplegable(
                     horarios.forEach { horario ->
                         FilaHorario(
                             hora = horario.time,
-                            dia = horario.weekDay,
+                            dia = horario.dateLabel,
                             plazas = "${horario.occupiedSlots}/${horario.totalSlots}",
                             instructor = horario.instructorName,
                             scheduleId = horario.scheduleId,
@@ -321,9 +321,9 @@ fun FilaHorario(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("$hora  •  $dia", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(dia, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(instructor, color = ColoresFit.GrisTexto, fontSize = 12.sp)
+                Text("$hora · $instructor", color = ColoresFit.GrisTexto, fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

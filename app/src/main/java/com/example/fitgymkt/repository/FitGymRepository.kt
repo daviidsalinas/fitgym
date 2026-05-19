@@ -86,11 +86,13 @@ class FitGymRepository(context: Context) {
 
             val dates = groupedByDate.keys.mapNotNull { formatter.parse(it) }
             val streakDays = calculateCurrentStreak(dates, formatter)
+            val weekStart = Calendar.getInstance().apply {
+                firstDayOfWeek = Calendar.MONDAY
+                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            }
             val weeklyHours = (0..6).map { offset ->
-                val cal = Calendar.getInstance().apply {
-                    time = Date()
-                    add(Calendar.DAY_OF_YEAR, offset - 6)
-                }
+                val cal = weekStart.clone() as Calendar
+                cal.add(Calendar.DAY_OF_YEAR, offset)
                 val key = formatter.format(cal.time)
                 (groupedByDate[key] ?: 0) / 60.0
             }
@@ -272,11 +274,13 @@ class FitGymRepository(context: Context) {
                 orderBy = "fecha_inicio",
                 ascending = false
             ) ?: return null
+            val endDate = row.optString("fecha_fin")
+            val isActive = subscriptionIsActive(row.optString("estado"), endDate)
 
             SubscriptionStatus(
                 type = row.optString("tipo"),
-                endDate = row.optString("fecha_fin"),
-                status = row.optString("estado")
+                endDate = endDate,
+                status = if (isActive) "Activa" else "Vencida"
             )
         }.getOrNull()
     }
@@ -481,12 +485,15 @@ class FitGymRepository(context: Context) {
     fun getClassesByWeekDay(dayFilter: String): List<ClassWithSchedules> {
         return runCatching {
             val schedules = getRows("horario_clase", orderBy = "fecha", ascending = true)
-            val filtered = schedules.filter { row -> dayFilter == "Todos" || sqlDateToWeekDay(row.optString("fecha")) == dayFilter }
+            val filtered = schedules.filter { row ->
+                isUpcomingSchedule(row) && (dayFilter == "Todos" || sqlDateToWeekDay(row.optString("fecha")) == dayFilter)
+            }
 
             val grouped = filtered.groupBy { it.optInt("id_clase") }
             grouped.mapNotNull { (classId, classSchedules) ->
                 val classRow = getSingleRow("clase", mapOf("id_clase" to eq(classId))) ?: return@mapNotNull null
                 val items = classSchedules.map { schedule ->
+                    val date = schedule.optString("fecha")
                     val occupied = getRows(
                         "reserva",
                         mapOf("id_horario" to eq(schedule.optInt("id_horario")), "estado" to eq("reservada")),
@@ -496,7 +503,9 @@ class FitGymRepository(context: Context) {
                     ClassScheduleItem(
                         scheduleId = schedule.optInt("id_horario"),
                         time = schedule.optString("hora_inicio"),
-                        weekDay = sqlDateToWeekDay(schedule.optString("fecha")),
+                        date = date,
+                        dateLabel = formatScheduleDateLabel(date),
+                        weekDay = sqlDateToWeekDay(date),
                         occupiedSlots = occupied,
                         totalSlots = schedule.optInt("plazas_totales"),
                         instructorName = listOf(monitorUser?.optString("nombre"), monitorUser?.optString("apellidos")).joinToString(" ").trim()
@@ -779,6 +788,59 @@ class FitGymRepository(context: Context) {
         }.getOrElse { ActionResult.Error("No se pudo crear el horario: ${it.message.orEmpty()}") }
     }
 
+    fun updateAdminSchedule(
+        scheduleId: Int,
+        date: String,
+        startTime: String,
+        durationMinutes: Int,
+        totalSlots: Int
+    ): ActionResult {
+        if (scheduleId <= 0) return ActionResult.Error("Horario no válido")
+        if (!date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return ActionResult.Error("La fecha debe tener formato YYYY-MM-DD")
+        if (!startTime.matches(Regex("\\d{2}:\\d{2}"))) return ActionResult.Error("La hora debe tener formato HH:MM")
+        if (durationMinutes <= 0) return ActionResult.Error("La duración debe ser mayor que 0")
+        if (totalSlots <= 0) return ActionResult.Error("Las plazas deben ser mayores que 0")
+
+        return runCatching {
+            val reservedSlots = getRows(
+                "reserva",
+                mapOf("id_horario" to eq(scheduleId), "estado" to eq("reservada")),
+                "id_reserva"
+            ).size
+            if (totalSlots < reservedSlots) {
+                return ActionResult.Error("No puedes dejar menos plazas que reservas activas ($reservedSlots)")
+            }
+
+            val endTime = calculateEndTime(startTime, durationMinutes)
+                ?: return ActionResult.Error("No se pudo calcular la hora de fin")
+
+            val updated = api.update(
+                "horario_clase",
+                mapOf("id_horario" to eq(scheduleId)),
+                JSONObject()
+                    .put("fecha", date)
+                    .put("hora_inicio", ensureSeconds(startTime))
+                    .put("hora_fin", endTime)
+                    .put("plazas_totales", totalSlots)
+            )
+
+            if (updated.length() > 0) ActionResult.Success("Horario actualizado correctamente")
+            else ActionResult.Error("No se encontró el horario")
+        }.getOrElse { ActionResult.Error("No se pudo actualizar el horario: ${it.message.orEmpty()}") }
+    }
+
+    fun deleteAdminSchedule(scheduleId: Int): ActionResult {
+        if (scheduleId <= 0) return ActionResult.Error("Horario no válido")
+
+        return runCatching {
+            api.delete("reserva", mapOf("id_horario" to eq(scheduleId)))
+            val deleted = api.delete("horario_clase", mapOf("id_horario" to eq(scheduleId)))
+
+            if (deleted.length() > 0) ActionResult.Success("Horario eliminado correctamente")
+            else ActionResult.Error("No se encontró el horario")
+        }.getOrElse { ActionResult.Error("No se pudo eliminar el horario: ${it.message.orEmpty()}") }
+    }
+
     fun getAdminBookings(): List<AdminBookingItem> {
         return runCatching {
             val bookings = getRows("reserva", orderBy = "fecha_reserva", ascending = false)
@@ -859,6 +921,8 @@ class FitGymRepository(context: Context) {
 
     private fun ensureSeconds(time: String): String = if (time.length == 5) "$time:00" else time
 
+    private fun normalizeHourMinute(time: String): String = time.take(5)
+
     private fun calculateEndTime(startTime: String, durationMinutes: Int): String? {
         return runCatching {
             val parts = startTime.split(":")
@@ -888,6 +952,28 @@ class FitGymRepository(context: Context) {
         val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val parsed = formatter.parse(date) ?: return ""
         return weekDayFromDate(parsed)
+    }
+
+    private fun formatScheduleDateLabel(date: String): String {
+        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val parsed = parser.parse(date) ?: return date
+        return "${weekDayFromDate(parsed)} ${formatter.format(parsed)}"
+    }
+
+    private fun isUpcomingSchedule(schedule: JSONObject): Boolean {
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+        val date = schedule.optString("fecha")
+        val time = normalizeHourMinute(schedule.optString("hora_inicio"))
+        val scheduleDateTime = formatter.parse("$date $time") ?: return date >= currentDateIso()
+        return !scheduleDateTime.before(Date())
+    }
+
+    private fun subscriptionIsActive(status: String, endDate: String): Boolean {
+        val normalizedStatus = status.trim().lowercase(Locale.ROOT)
+        val parsedEndDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(endDate) ?: return false
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(currentDateIso()) ?: Date()
+        return normalizedStatus in setOf("activa", "activo", "active", "vigente") && !parsedEndDate.before(today)
     }
 
     private fun calculateCurrentStreak(dates: List<Date>, formatter: SimpleDateFormat): Int {

@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
@@ -33,6 +37,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Badge
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -83,6 +88,7 @@ import com.example.fitgymkt.model.ui.AdminScheduleItem
 import com.example.fitgymkt.model.ui.AdminUserItem
 import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
+import com.example.fitgymkt.ui.theme.ColoresFit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -100,6 +106,11 @@ private enum class AdminSection(
     MANAGEMENT(R.string.admin_management_title, Icons.Default.CalendarMonth)
 }
 
+private enum class AdminScheduleFilter {
+    ALL,
+    FUTURE
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaAdmin(
@@ -113,6 +124,7 @@ fun PantallaAdmin(
     var selectedSection by remember { mutableStateOf(AdminSection.DASHBOARD) }
     var refreshKey by remember { mutableStateOf(0) }
     var classForSchedule by remember { mutableStateOf<AdminClassItem?>(null) }
+    var scheduleForManagement by remember { mutableStateOf<AdminScheduleItem?>(null) }
 
     val dashboardData by produceState<AdminDashboardData?>(initialValue = null, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAdminDashboardData() }
@@ -214,7 +226,8 @@ fun PantallaAdmin(
                 AdminSection.MANAGEMENT -> AdminManagementContent(
                     classes = classes,
                     schedules = schedules,
-                    onCreateSchedule = { classForSchedule = it }
+                    onCreateSchedule = { classForSchedule = it },
+                    onScheduleClick = { scheduleForManagement = it }
                 )
             }
         }
@@ -232,6 +245,41 @@ fun PantallaAdmin(
                             is ActionResult.Success -> {
                                 snackbarHostState.showSnackbar(result.message)
                                 classForSchedule = null
+                                refreshKey++
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }
+            )
+        }
+
+        scheduleForManagement?.let { schedule ->
+            ManageScheduleDialog(
+                schedule = schedule,
+                onDismiss = { scheduleForManagement = null },
+                onUpdate = { date, startTime, durationMinutes, totalSlots ->
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            repository.updateAdminSchedule(schedule.id, date, startTime, durationMinutes, totalSlots)
+                        }
+                        when (result) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                scheduleForManagement = null
+                                refreshKey++
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                },
+                onDelete = {
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) { repository.deleteAdminSchedule(schedule.id) }
+                        when (result) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                scheduleForManagement = null
                                 refreshKey++
                             }
                             is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
@@ -378,11 +426,13 @@ private fun AdminUsersContent(
 private fun AdminManagementContent(
     classes: List<AdminClassItem>,
     schedules: List<AdminScheduleItem>,
-    onCreateSchedule: (AdminClassItem) -> Unit
+    onCreateSchedule: (AdminClassItem) -> Unit,
+    onScheduleClick: (AdminScheduleItem) -> Unit
 ) {
     val listState = rememberLazyListState()
     var classQuery by remember { mutableStateOf("") }
-    val minimumDate = remember { adminMinimumScheduleDate() }
+    var scheduleFilter by remember { mutableStateOf(AdminScheduleFilter.FUTURE) }
+    val today = remember { adminTodayDate() }
     val filteredClasses = remember(classes, classQuery) {
         val normalized = classQuery.trim()
         if (normalized.isBlank()) classes
@@ -417,14 +467,39 @@ private fun AdminManagementContent(
                         focusedContainerColor = MaterialTheme.colorScheme.surface
                     )
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { scheduleFilter = AdminScheduleFilter.ALL },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (scheduleFilter == AdminScheduleFilter.ALL) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (scheduleFilter == AdminScheduleFilter.ALL) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text(stringResource(R.string.admin_schedule_filter_all))
+                    }
+                    Button(
+                        onClick = { scheduleFilter = AdminScheduleFilter.FUTURE },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (scheduleFilter == AdminScheduleFilter.FUTURE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (scheduleFilter == AdminScheduleFilter.FUTURE) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text(stringResource(R.string.admin_schedule_filter_future))
+                    }
+                }
             }
         }
         items(filteredClasses, key = { "class_${it.id}" }) { classItem ->
-            val classSchedules = schedules.filter { it.className == classItem.name && it.date >= minimumDate }
+            val classSchedules = schedules.filter {
+                it.className == classItem.name && (scheduleFilter == AdminScheduleFilter.ALL || it.date >= today)
+            }
             AdminClassScheduleCard(
                 classItem = classItem,
                 schedules = classSchedules,
-                onCreateSchedule = { onCreateSchedule(classItem) }
+                onCreateSchedule = { onCreateSchedule(classItem) },
+                onScheduleClick = onScheduleClick
             )
         }
     }
@@ -434,7 +509,8 @@ private fun AdminManagementContent(
 private fun AdminClassScheduleCard(
     classItem: AdminClassItem,
     schedules: List<AdminScheduleItem>,
-    onCreateSchedule: () -> Unit
+    onCreateSchedule: () -> Unit,
+    onScheduleClick: (AdminScheduleItem) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     Card(
@@ -501,7 +577,7 @@ private fun AdminClassScheduleCard(
                 Text(stringResource(R.string.admin_no_schedules_for_class), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (expanded) {
                 schedules.forEach { schedule ->
-                    AdminScheduleCompactRow(schedule)
+                    AdminScheduleCompactRow(schedule, onClick = { onScheduleClick(schedule) })
                 }
             }
 
@@ -534,10 +610,11 @@ private fun adminDefaultStartTime(): String {
 }
 
 @Composable
-private fun AdminScheduleCompactRow(schedule: AdminScheduleItem) {
+private fun AdminScheduleCompactRow(schedule: AdminScheduleItem, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -566,6 +643,7 @@ private fun AdminScheduleCompactRow(schedule: AdminScheduleItem) {
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         )
+        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.padding(start = 8.dp).size(18.dp))
     }
 }
 
@@ -652,6 +730,118 @@ private fun AdminBookingCard(booking: AdminBookingItem) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
+        }
+    }
+}
+
+@Composable
+private fun ManageScheduleDialog(
+    schedule: AdminScheduleItem,
+    onDismiss: () -> Unit,
+    onUpdate: (String, String, Int, Int) -> Unit,
+    onDelete: () -> Unit
+) {
+    var date by remember(schedule.id) { mutableStateOf(schedule.date) }
+    var startTime by remember(schedule.id) { mutableStateOf(schedule.startTime.take(5)) }
+    var durationMinutes by remember(schedule.id) { mutableStateOf(adminScheduleDurationMinutes(schedule.startTime, schedule.endTime).toString()) }
+    var totalSlots by remember(schedule.id) { mutableStateOf(schedule.totalSlots.toString()) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.admin_delete_schedule)) },
+            text = { Text(stringResource(R.string.admin_delete_schedule_warning, schedule.className, schedule.date, schedule.startTime)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        onDelete()
+                    }
+                ) {
+                    Text(stringResource(R.string.delete), color = ColoresFit.Rojo)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    FitGymDialogPanel(onDismiss = onDismiss) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Edit, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.admin_manage_schedule), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+            Text(schedule.className, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            OutlinedTextField(
+                value = date,
+                onValueChange = { date = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.admin_schedule_date)) }
+            )
+            OutlinedTextField(
+                value = startTime,
+                onValueChange = { startTime = it.take(5) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.admin_schedule_start_time)) }
+            )
+            OutlinedTextField(
+                value = durationMinutes,
+                onValueChange = { durationMinutes = it.filter(Char::isDigit) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.admin_schedule_duration)) }
+            )
+            OutlinedTextField(
+                value = totalSlots,
+                onValueChange = { totalSlots = it.filter(Char::isDigit) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.admin_schedule_total_slots)) }
+            )
+            Text(
+                text = stringResource(R.string.admin_schedule_reserved_slots_hint, schedule.reservedSlots),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = {
+                        onUpdate(
+                            date,
+                            startTime,
+                            durationMinutes.toIntOrNull() ?: 0,
+                            totalSlots.toIntOrNull() ?: 0
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            }
+
+            TextButton(onClick = { showDeleteConfirmation = true }, modifier = Modifier.align(Alignment.End)) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = ColoresFit.Rojo, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.admin_delete_schedule), color = ColoresFit.Rojo)
+            }
         }
     }
 }
@@ -789,6 +979,15 @@ private fun CreateClassDialog(
             }
         }
     )
+}
+
+private fun adminScheduleDurationMinutes(startTime: String, endTime: String): Int {
+    val parser = SimpleDateFormat("HH:mm", Locale.US)
+    val start = parser.parse(startTime.take(5)) ?: return 60
+    val end = parser.parse(endTime.take(5)) ?: return 60
+    val diff = end.time - start.time
+    val minutes = (diff / 60000).toInt()
+    return if (minutes > 0) minutes else minutes + (24 * 60)
 }
 
 @Composable

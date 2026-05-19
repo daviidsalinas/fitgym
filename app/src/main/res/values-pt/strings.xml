@@ -83,6 +83,8 @@
     <string name="book_spot">Reservar vaga</string>
     <string name="menu">Menu</string>
     <string name="close">Fechar</string>
+    <string name="edit">Editar</string>
+    <string name="delete">Eliminar</string>
     <string name="unread_count">%1$d não lidas</string>
     <string name="mark_all_as_read">Marcar todas como lidas</string>
     <string name="subscription">Assinatura</string>
@@ -102,7 +104,7 @@
     <string name="analysis_remaining_hours">%1$.1fh restantes</string>
     <string name="analysis_hours_value">%1$.1f h</string>
     <string name="analysis_weekly_activity">Atividade semanal</string>
-    <string name="analysis_last_7_days">Últimos 7 dias</string>
+    <string name="analysis_last_7_days">Semana atual</string>
     <string name="analysis_total">Total</string>
     <string name="analysis_daily_average">Média diária</string>
     <string name="analysis_minutes_value">%1$d min</string>
@@ -215,5 +217,12 @@
     <string name="admin_filter_classes_placeholder">Filtrar aula</string>
     <string name="admin_create_schedule_short">Horário</string>
     <string name="admin_no_schedules_for_class">Esta aula ainda não possui horários.</string>
-    <string name="admin_view_schedules">Ver todos os horários (%1$d)</string>
+    <string name="admin_schedule_filter_all">Todos os horários</string>
+    <string name="admin_schedule_filter_future">Horários futuros</string>
+    <string name="admin_view_schedules">Ver horários (%1$d)</string>
+    <string name="admin_manage_schedule">Gerir horário</string>
+    <string name="admin_delete_schedule">Eliminar horário</string>
+    <string name="admin_delete_schedule_warning">%1$s em %2$s às %3$s e as suas reservas associadas serão eliminados. Esta ação não pode ser desfeita.</string>
+    <string name="admin_schedule_total_slots">Total de vagas</string>
+    <string name="admin_schedule_reserved_slots_hint">Reservas ativas agora: %1$d</string>
 </resources>
