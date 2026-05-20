@@ -23,8 +23,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,6 +49,7 @@ import com.example.fitgymkt.ui.theme.ColoresFit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 import java.util.Locale
 
 @Composable
@@ -66,14 +69,20 @@ fun PantallaAnalisis(
     var refreshKey by remember { mutableIntStateOf(0) }
     var horasEntrenamiento by remember { mutableIntStateOf(0) }
     var minutosEntrenamiento by remember { mutableIntStateOf(30) }
+    var previewEntrenamiento by remember { mutableStateOf(false) }
+    var minutosOptimistas by remember { mutableIntStateOf(0) }
 
     val analysisData by produceState<AnalysisData?>(initialValue = null, userId, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAnalysisData(userId) }
     }
 
+    LaunchedEffect(analysisData) {
+        minutosOptimistas = 0
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { FitGymSnackbarHost(snackbarHostState) },
         topBar = {
             FitGymTopBar(
                 title = stringResource(R.string.analysis_title),
@@ -106,10 +115,15 @@ fun PantallaAnalisis(
         }
 
         val data = analysisData!!
-        val progress = if (data.weeklyGoalHours <= 0.0) 0f else (data.weeklyCompletedHours / data.weeklyGoalHours).toFloat().coerceIn(0f, 1f)
-        val remainingHours = (data.weeklyGoalHours - data.weeklyCompletedHours).coerceAtLeast(0.0)
-        val totalWeeklyHours = data.weeklyActivityHours.sum()
-        val avgMinutes = if (data.weeklyActivityHours.isEmpty()) 0 else ((totalWeeklyHours / data.weeklyActivityHours.size) * 60).toInt()
+        val selectedMinutes = (horasEntrenamiento * 60) + minutosEntrenamiento
+        val previewMinutes = minutosOptimistas + if (previewEntrenamiento) selectedMinutes else 0
+        val previewHours = previewMinutes / 60.0
+        val displayedCompletedHours = data.weeklyCompletedHours + previewHours
+        val displayedWeeklyActivity = data.weeklyActivityHours.withTodayPreview(previewHours)
+        val progress = if (data.weeklyGoalHours <= 0.0) 0f else (displayedCompletedHours / data.weeklyGoalHours).toFloat().coerceIn(0f, 1f)
+        val remainingHours = (data.weeklyGoalHours - displayedCompletedHours).coerceAtLeast(0.0)
+        val totalWeeklyHours = displayedWeeklyActivity.sum()
+        val avgMinutes = if (displayedWeeklyActivity.isEmpty()) 0 else ((totalWeeklyHours / displayedWeeklyActivity.size) * 60).toInt()
 
         Column(
             modifier = Modifier
@@ -155,7 +169,7 @@ fun PantallaAnalisis(
                     )
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
-                        text = stringResource(R.string.analysis_hours_value, data.weeklyCompletedHours),
+                        text = stringResource(R.string.analysis_hours_value, displayedCompletedHours),
                         style = MaterialTheme.typography.displayLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -194,7 +208,7 @@ fun PantallaAnalisis(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        val maxValue = (data.weeklyActivityHours.maxOrNull() ?: 0.0).coerceAtLeast(0.1)
+                        val maxValue = (displayedWeeklyActivity.maxOrNull() ?: 0.0).coerceAtLeast(0.1)
                         val dias = listOf(
                             stringResource(R.string.mon_short),
                             stringResource(R.string.tue_short),
@@ -205,7 +219,7 @@ fun PantallaAnalisis(
                             stringResource(R.string.sun_short)
                         )
 
-                        data.weeklyActivityHours.forEachIndexed { index, dailyHours ->
+                        displayedWeeklyActivity.forEachIndexed { index, dailyHours ->
                             val altura = (dailyHours / maxValue).toFloat().coerceIn(0.1f, 1f)
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Box(
@@ -277,14 +291,20 @@ fun PantallaAnalisis(
                             titulo = stringResource(R.string.hours),
                             value = horasEntrenamiento,
                             range = 0..8,
-                            onValueChange = { horasEntrenamiento = it }
+                            onValueChange = {
+                                horasEntrenamiento = it
+                                previewEntrenamiento = true
+                            }
                         )
                         SelectorTiempo(
                             titulo = stringResource(R.string.minutes_short),
                             value = minutosEntrenamiento,
                             range = 0..59,
                             formatter = { String.format(Locale.getDefault(), "%02d", it) },
-                            onValueChange = { minutosEntrenamiento = it }
+                            onValueChange = {
+                                minutosEntrenamiento = it
+                                previewEntrenamiento = true
+                            }
                         )
                     }
 
@@ -296,10 +316,12 @@ fun PantallaAnalisis(
                             scope.launch {
                                 when (val result = withContext(Dispatchers.IO) { repository.registerWorkout(userId, minutes) }) {
                                     is ActionResult.Success -> {
-                                        snackbarHostState.showSnackbar(result.message)
+                                        minutosOptimistas += minutes
+                                        previewEntrenamiento = false
                                         horasEntrenamiento = 0
                                         minutosEntrenamiento = 30
                                         refreshKey++
+                                        snackbarHostState.showSnackbar(result.message)
                                     }
                                     is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
                                 }
@@ -321,6 +343,20 @@ fun PantallaAnalisis(
             Spacer(modifier = Modifier.height(12.dp))
         }
     }
+}
+
+private fun List<Double>.withTodayPreview(extraHours: Double): List<Double> {
+    if (isEmpty() || extraHours <= 0.0) return this
+    val todayIndex = when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+        Calendar.MONDAY -> 0
+        Calendar.TUESDAY -> 1
+        Calendar.WEDNESDAY -> 2
+        Calendar.THURSDAY -> 3
+        Calendar.FRIDAY -> 4
+        Calendar.SATURDAY -> 5
+        else -> 6
+    }
+    return mapIndexed { index, value -> if (index == todayIndex) value + extraHours else value }
 }
 
 @Composable

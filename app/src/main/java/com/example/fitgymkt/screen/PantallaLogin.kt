@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.fitgymkt.R
+import com.example.fitgymkt.repository.ActionResult
 import com.example.fitgymkt.repository.FitGymRepository
 import com.example.fitgymkt.repository.LoginResult
 import com.example.fitgymkt.ui.theme.ColoresFit
@@ -65,6 +67,7 @@ fun PantallaLogin(
     var contrasena by remember { mutableStateOf("") }
     var mostrarPassword by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(false) }
+    var mostrarResetPassword by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val repository = remember(context) { FitGymRepository(context) }
@@ -169,7 +172,10 @@ fun PantallaLogin(
                             .padding(top = 8.dp),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { }) {
+                        TextButton(
+                            onClick = { mostrarResetPassword = true },
+                            enabled = !cargando
+                        ) {
                             Text(
                                 text = stringResource(R.string.forgot_password),
                                 color = ColoresFit.GrisTexto
@@ -230,6 +236,171 @@ fun PantallaLogin(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(enabled = !cargando) { alIrARegistro() }
                 )
+            }
+        }
+    }
+
+    if (mostrarResetPassword) {
+        ResetPasswordDialog(
+            initialEmail = correo,
+            cargando = cargando,
+            onDismiss = { mostrarResetPassword = false },
+            onReset = { email, newPassword ->
+                scope.launch {
+                    cargando = true
+                    val result = withContext(Dispatchers.IO) {
+                        repository.resetPassword(email, newPassword)
+                    }
+                    cargando = false
+
+                    when (result) {
+                        is ActionResult.Success -> {
+                            correo = email
+                            contrasena = ""
+                            mostrarResetPassword = false
+                            snackbarHostState.showSnackbar(result.message)
+                        }
+                        is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ResetPasswordDialog(
+    initialEmail: String,
+    cargando: Boolean,
+    onDismiss: () -> Unit,
+    onReset: (String, String) -> Unit
+) {
+    var email by remember(initialEmail) { mutableStateOf(initialEmail) }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    var localError by remember { mutableStateOf<String?>(null) }
+    val passwordMismatch = stringResource(R.string.passwords_do_not_match)
+
+    FitGymDialogPanel(onDismiss = { if (!cargando) onDismiss() }) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(18.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.reset_password_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.reset_password_subtitle),
+                        color = ColoresFit.GrisTexto,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            localError?.let {
+                FitGymPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            FitGymLoginField(
+                value = email,
+                onValueChange = { email = it },
+                placeholder = stringResource(R.string.email),
+                leadingIcon = Icons.Default.Email,
+                enabled = !cargando
+            )
+            FitGymLoginField(
+                value = newPassword,
+                onValueChange = { newPassword = it },
+                placeholder = stringResource(R.string.new_password),
+                leadingIcon = Icons.Default.Lock,
+                enabled = !cargando,
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPassword) {
+                                stringResource(R.string.hide_password)
+                            } else {
+                                stringResource(R.string.show_password)
+                            },
+                            tint = ColoresFit.GrisTexto
+                        )
+                    }
+                }
+            )
+            FitGymLoginField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                placeholder = stringResource(R.string.confirm_password),
+                leadingIcon = Icons.Default.Lock,
+                enabled = !cargando,
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onDismiss,
+                    enabled = !cargando,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    enabled = !cargando,
+                    onClick = {
+                        if (newPassword != confirmPassword) {
+                            localError = passwordMismatch
+                        } else {
+                            localError = null
+                            onReset(email.trim(), newPassword)
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    if (cargando) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(R.string.reset_password_action))
+                    }
+                }
             }
         }
     }

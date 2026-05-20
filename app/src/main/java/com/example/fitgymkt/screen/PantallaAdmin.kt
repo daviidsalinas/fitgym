@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Badge
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -84,6 +86,8 @@ import com.example.fitgymkt.R
 import com.example.fitgymkt.model.ui.AdminClassItem
 import com.example.fitgymkt.model.ui.AdminBookingItem
 import com.example.fitgymkt.model.ui.AdminDashboardData
+import com.example.fitgymkt.model.ui.AdminMonitorItem
+import com.example.fitgymkt.model.ui.AdminRoomItem
 import com.example.fitgymkt.model.ui.AdminScheduleItem
 import com.example.fitgymkt.model.ui.AdminUserItem
 import com.example.fitgymkt.repository.ActionResult
@@ -123,8 +127,14 @@ fun PantallaAdmin(
     val scope = rememberCoroutineScope()
     var selectedSection by remember { mutableStateOf(AdminSection.DASHBOARD) }
     var refreshKey by remember { mutableStateOf(0) }
+    var showCreateClass by remember { mutableStateOf(false) }
+    var showCreateUser by remember { mutableStateOf(false) }
+    var classForEdit by remember { mutableStateOf<AdminClassItem?>(null) }
+    var classForDelete by remember { mutableStateOf<AdminClassItem?>(null) }
     var classForSchedule by remember { mutableStateOf<AdminClassItem?>(null) }
     var scheduleForManagement by remember { mutableStateOf<AdminScheduleItem?>(null) }
+    var userForNotification by remember { mutableStateOf<AdminUserItem?>(null) }
+    var userForStatusChange by remember { mutableStateOf<AdminUserItem?>(null) }
 
     val dashboardData by produceState<AdminDashboardData?>(initialValue = null, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAdminDashboardData() }
@@ -138,12 +148,18 @@ fun PantallaAdmin(
     val schedules by produceState<List<AdminScheduleItem>>(initialValue = emptyList(), refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAdminSchedules() }
     }
+    val rooms by produceState<List<AdminRoomItem>>(initialValue = emptyList(), refreshKey) {
+        value = withContext(Dispatchers.IO) { repository.getAdminRooms() }
+    }
+    val monitors by produceState<List<AdminMonitorItem>>(initialValue = emptyList(), refreshKey) {
+        value = withContext(Dispatchers.IO) { repository.getAdminMonitors() }
+    }
     val bookings by produceState<List<AdminBookingItem>>(initialValue = emptyList(), refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getAdminBookings() }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { FitGymSnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -208,38 +224,204 @@ fun PantallaAdmin(
                 AdminSection.DASHBOARD -> AdminDashboardContent(dashboardData = dashboardData!!)
                 AdminSection.USERS -> AdminUsersContent(
                     users = users,
-                    onToggleActive = { user ->
-                        scope.launch {
-                            val result = withContext(Dispatchers.IO) {
-                                repository.updateUserActiveStatus(user.id, !user.active)
-                            }
-                            when (result) {
-                                is ActionResult.Success -> {
-                                    snackbarHostState.showSnackbar(result.message)
-                                    refreshKey++
-                                }
-                                is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
-                            }
-                        }
-                    }
+                    onCreateUser = { showCreateUser = true },
+                    onToggleActive = { user -> userForStatusChange = user },
+                    onCreateNotification = { user -> userForNotification = user }
                 )
                 AdminSection.MANAGEMENT -> AdminManagementContent(
                     classes = classes,
                     schedules = schedules,
+                    onCreateClass = { showCreateClass = true },
+                    onEditClass = { classForEdit = it },
+                    onDeleteClass = { classForDelete = it },
                     onCreateSchedule = { classForSchedule = it },
                     onScheduleClick = { scheduleForManagement = it }
                 )
             }
         }
 
+        if (showCreateClass) {
+            CreateClassDialog(
+                onDismiss = { showCreateClass = false },
+                onSave = { name, description, imageUri ->
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            repository.createAdminClass(name, description, imageUri)
+                        }
+                        when (result) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                showCreateClass = false
+                                refreshKey++
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showCreateUser) {
+            CreateUserDialog(
+                onDismiss = { showCreateUser = false },
+                onCreate = { form ->
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            repository.createAdminUser(
+                                nombre = form.nombre,
+                                apellidos = form.apellidos,
+                                email = form.email,
+                                password = form.password,
+                                role = form.role,
+                                active = form.active,
+                                profilePhoto = "",
+                                phone = form.phone,
+                                age = form.age,
+                                weightKg = form.weightKg,
+                                heightCm = form.heightCm,
+                                darkMode = false,
+                                notificationsEnabled = form.notificationsEnabled,
+                                language = form.language,
+                                monitorSpecialty = form.monitorSpecialty,
+                                monitorPhone = form.monitorPhone
+                            )
+                        }
+                        when (result) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                showCreateUser = false
+                                refreshKey++
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }
+            )
+        }
+
+        userForStatusChange?.let { user ->
+            AlertDialog(
+                onDismissRequest = { userForStatusChange = null },
+                title = {
+                    Text(
+                        if (user.active) stringResource(R.string.admin_deactivate_user)
+                        else stringResource(R.string.admin_activate_user)
+                    )
+                },
+                text = {
+                    Text(
+                        if (user.active) stringResource(R.string.admin_deactivate_user_warning, user.fullName.ifBlank { user.email })
+                        else stringResource(R.string.admin_activate_user_warning, user.fullName.ifBlank { user.email })
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    repository.updateUserActiveStatus(user.id, !user.active)
+                                }
+                                when (result) {
+                                    is ActionResult.Success -> {
+                                        snackbarHostState.showSnackbar(result.message)
+                                        userForStatusChange = null
+                                        refreshKey++
+                                    }
+                                    is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                                }
+                            }
+                        }
+                    ) {
+                        Text(
+                            if (user.active) stringResource(R.string.admin_deactivate_user)
+                            else stringResource(R.string.admin_activate_user),
+                            color = if (user.active) ColoresFit.Rojo else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { userForStatusChange = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        classForEdit?.let { targetClass ->
+            CreateClassDialog(
+                classItem = targetClass,
+                onDismiss = { classForEdit = null },
+                onSave = { name, description, imageUri ->
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            repository.updateAdminClass(targetClass.id, name, description, imageUri)
+                        }
+                        when (result) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                classForEdit = null
+                                refreshKey++
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }
+            )
+        }
+
+        classForDelete?.let { targetClass ->
+            AlertDialog(
+                onDismissRequest = { classForDelete = null },
+                title = { Text(stringResource(R.string.admin_delete_class)) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.admin_delete_class_warning,
+                            targetClass.name,
+                            targetClass.schedulesCount,
+                            targetClass.reservationsCount
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    repository.deleteAdminClass(targetClass.id)
+                                }
+                                when (result) {
+                                    is ActionResult.Success -> {
+                                        snackbarHostState.showSnackbar(result.message)
+                                        classForDelete = null
+                                        refreshKey++
+                                    }
+                                    is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                                }
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.delete), color = ColoresFit.Rojo)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { classForDelete = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
         classForSchedule?.let { targetClass ->
             CreateScheduleDialog(
                 classItem = targetClass,
+                rooms = rooms,
+                monitors = monitors,
                 onDismiss = { classForSchedule = null },
-                onCreate = { classId, date, startTime, durationMinutes ->
+                onCreate = { classId, date, startTime, durationMinutes, monitorId, roomId, totalSlots ->
                     scope.launch {
                         val result = withContext(Dispatchers.IO) {
-                            repository.createAdminSchedule(classId, date, startTime, durationMinutes)
+                            repository.createAdminSchedule(classId, date, startTime, durationMinutes, monitorId, roomId, totalSlots)
                         }
                         when (result) {
                             is ActionResult.Success -> {
@@ -257,11 +439,13 @@ fun PantallaAdmin(
         scheduleForManagement?.let { schedule ->
             ManageScheduleDialog(
                 schedule = schedule,
+                rooms = rooms,
+                monitors = monitors,
                 onDismiss = { scheduleForManagement = null },
-                onUpdate = { date, startTime, durationMinutes, totalSlots ->
+                onUpdate = { date, startTime, durationMinutes, totalSlots, monitorId, roomId ->
                     scope.launch {
                         val result = withContext(Dispatchers.IO) {
-                            repository.updateAdminSchedule(schedule.id, date, startTime, durationMinutes, totalSlots)
+                            repository.updateAdminSchedule(schedule.id, date, startTime, durationMinutes, totalSlots, monitorId, roomId)
                         }
                         when (result) {
                             is ActionResult.Success -> {
@@ -281,6 +465,27 @@ fun PantallaAdmin(
                                 snackbarHostState.showSnackbar(result.message)
                                 scheduleForManagement = null
                                 refreshKey++
+                            }
+                            is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
+                        }
+                    }
+                }
+            )
+        }
+
+        userForNotification?.let { user ->
+            CreateNotificationDialog(
+                user = user,
+                onDismiss = { userForNotification = null },
+                onCreate = { title, message ->
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            repository.createManualNotification(user.id, title, message)
+                        }
+                        when (result) {
+                            is ActionResult.Success -> {
+                                snackbarHostState.showSnackbar(result.message)
+                                userForNotification = null
                             }
                             is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
                         }
@@ -328,25 +533,72 @@ private fun AdminDashboardContent(dashboardData: AdminDashboardData) {
             )
         }
 
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        AdminDashboardBlock(
+            title = stringResource(R.string.admin_dashboard_notifications),
+            subtitle = stringResource(R.string.admin_dashboard_notifications_subtitle)
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = stringResource(R.string.admin_recent_users_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(R.string.admin_recent_users_subtitle, dashboardData.todayReservations),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                dashboardData.recentUsers.forEach { user ->
-                    AdminUserRow(user = user, onToggleActive = null)
-                }
+            dashboardData.notifications.forEach { notification ->
+                AdminDashboardNotificationRow(notification)
             }
+        }
+
+        AdminDashboardBlock(
+            title = stringResource(R.string.admin_recent_users_title),
+            subtitle = stringResource(R.string.admin_recent_users_subtitle, dashboardData.todayReservations)
+        ) {
+            dashboardData.recentUsers.forEach { user ->
+                AdminUserRow(user = user, onToggleActive = null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminDashboardBlock(
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun AdminDashboardNotificationRow(notification: com.example.fitgymkt.model.ui.AdminDashboardNotification) {
+    val color = when (notification.type) {
+        "booking" -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        "class" -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        "subscription" -> Color(0xFFFDE2E2) to Color(0xFF991B1B)
+        else -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(color.first, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Notifications, contentDescription = null, tint = color.second, modifier = Modifier.size(19.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(notification.title, fontWeight = FontWeight.Bold)
+            Text(notification.message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
     }
 }
@@ -382,7 +634,9 @@ private fun AdminMetricCard(
 @Composable
 private fun AdminUsersContent(
     users: List<AdminUserItem>,
-    onToggleActive: (AdminUserItem) -> Unit
+    onCreateUser: () -> Unit,
+    onToggleActive: (AdminUserItem) -> Unit,
+    onCreateNotification: (AdminUserItem) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     val filteredUsers = remember(users, query) {
@@ -397,6 +651,19 @@ private fun AdminUsersContent(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onCreateUser,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.admin_create_user))
+                }
                 Text(
                     text = stringResource(R.string.admin_users_summary, filteredUsers.size),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -417,7 +684,11 @@ private fun AdminUsersContent(
             }
         }
         items(filteredUsers, key = { it.id }) { user ->
-            AdminUserRow(user = user, onToggleActive = { onToggleActive(user) })
+            AdminUserRow(
+                user = user,
+                onToggleActive = { onToggleActive(user) },
+                onCreateNotification = { onCreateNotification(user) }
+            )
         }
     }
 }
@@ -426,6 +697,9 @@ private fun AdminUsersContent(
 private fun AdminManagementContent(
     classes: List<AdminClassItem>,
     schedules: List<AdminScheduleItem>,
+    onCreateClass: () -> Unit,
+    onEditClass: (AdminClassItem) -> Unit,
+    onDeleteClass: (AdminClassItem) -> Unit,
     onCreateSchedule: (AdminClassItem) -> Unit,
     onScheduleClick: (AdminScheduleItem) -> Unit
 ) {
@@ -454,6 +728,19 @@ private fun AdminManagementContent(
                     text = stringResource(R.string.admin_management_classes_schedule_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Button(
+                    onClick = onCreateClass,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.admin_create_class))
+                }
                 OutlinedTextField(
                     value = classQuery,
                     onValueChange = { classQuery = it },
@@ -498,6 +785,8 @@ private fun AdminManagementContent(
             AdminClassScheduleCard(
                 classItem = classItem,
                 schedules = classSchedules,
+                onEditClass = { onEditClass(classItem) },
+                onDeleteClass = { onDeleteClass(classItem) },
                 onCreateSchedule = { onCreateSchedule(classItem) },
                 onScheduleClick = onScheduleClick
             )
@@ -509,6 +798,8 @@ private fun AdminManagementContent(
 private fun AdminClassScheduleCard(
     classItem: AdminClassItem,
     schedules: List<AdminScheduleItem>,
+    onEditClass: () -> Unit,
+    onDeleteClass: () -> Unit,
     onCreateSchedule: () -> Unit,
     onScheduleClick: (AdminScheduleItem) -> Unit
 ) {
@@ -581,12 +872,22 @@ private fun AdminClassScheduleCard(
                 }
             }
 
-            TextButton(
-                onClick = onCreateSchedule,
-                modifier = Modifier.align(Alignment.End)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text(stringResource(R.string.admin_create_schedule))
+                TextButton(onClick = onEditClass, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.edit))
+                }
+                TextButton(onClick = onDeleteClass, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = ColoresFit.Rojo, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.delete), color = ColoresFit.Rojo)
+                }
+                TextButton(onClick = onCreateSchedule, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.admin_create_schedule_short))
+                }
             }
         }
     }
@@ -735,16 +1036,76 @@ private fun AdminBookingCard(booking: AdminBookingItem) {
 }
 
 @Composable
+private fun AdminPickerField(
+    label: String,
+    value: String,
+    options: List<Pair<Int, String>>,
+    onSelected: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true },
+            readOnly = true,
+            enabled = false,
+            label = { Text(label) },
+            trailingIcon = {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null
+                )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (options.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.no_items_yet)) },
+                    onClick = { expanded = false }
+                )
+            } else {
+                options.forEach { (id, text) ->
+                    DropdownMenuItem(
+                        text = { Text(text) },
+                        onClick = {
+                            onSelected(id)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ManageScheduleDialog(
     schedule: AdminScheduleItem,
+    rooms: List<AdminRoomItem>,
+    monitors: List<AdminMonitorItem>,
     onDismiss: () -> Unit,
-    onUpdate: (String, String, Int, Int) -> Unit,
+    onUpdate: (String, String, Int, Int, Int, Int) -> Unit,
     onDelete: () -> Unit
 ) {
     var date by remember(schedule.id) { mutableStateOf(schedule.date) }
     var startTime by remember(schedule.id) { mutableStateOf(schedule.startTime.take(5)) }
     var durationMinutes by remember(schedule.id) { mutableStateOf(adminScheduleDurationMinutes(schedule.startTime, schedule.endTime).toString()) }
     var totalSlots by remember(schedule.id) { mutableStateOf(schedule.totalSlots.toString()) }
+    var selectedRoomId by remember(schedule.id) { mutableStateOf(schedule.roomId) }
+    var selectedMonitorId by remember(schedule.id) { mutableStateOf(schedule.monitorId) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     if (showDeleteConfirmation) {
@@ -779,6 +1140,23 @@ private fun ManageScheduleDialog(
             }
             Text(schedule.className, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
+            AdminPickerField(
+                label = stringResource(R.string.admin_schedule_room),
+                value = rooms.firstOrNull { it.id == selectedRoomId }?.let { "${it.name} (${it.capacity})" }
+                    ?: stringResource(R.string.admin_select_room),
+                options = rooms.map { it.id to "${it.name} (${it.capacity})" },
+                onSelected = { selectedRoomId = it }
+            )
+            AdminPickerField(
+                label = stringResource(R.string.admin_schedule_monitor),
+                value = monitors.firstOrNull { it.id == selectedMonitorId }?.let {
+                    listOf(it.fullName, it.specialty).filter(String::isNotBlank).joinToString(" · ")
+                } ?: stringResource(R.string.admin_select_monitor),
+                options = monitors.map {
+                    it.id to listOf(it.fullName, it.specialty).filter(String::isNotBlank).joinToString(" · ")
+                },
+                onSelected = { selectedMonitorId = it }
+            )
             OutlinedTextField(
                 value = date,
                 onValueChange = { date = it },
@@ -827,7 +1205,9 @@ private fun ManageScheduleDialog(
                             date,
                             startTime,
                             durationMinutes.toIntOrNull() ?: 0,
-                            totalSlots.toIntOrNull() ?: 0
+                            totalSlots.toIntOrNull() ?: 0,
+                            selectedMonitorId,
+                            selectedRoomId
                         )
                     },
                     modifier = Modifier.weight(1f),
@@ -849,15 +1229,23 @@ private fun ManageScheduleDialog(
 @Composable
 private fun CreateScheduleDialog(
     classItem: AdminClassItem,
+    rooms: List<AdminRoomItem>,
+    monitors: List<AdminMonitorItem>,
     onDismiss: () -> Unit,
-    onCreate: (Int, String, String, Int) -> Unit
+    onCreate: (Int, String, String, Int, Int, Int, Int) -> Unit
 ) {
     var date by remember { mutableStateOf(adminTodayDate()) }
     var startTime by remember { mutableStateOf(adminDefaultStartTime()) }
     var durationMinutes by remember { mutableStateOf("60") }
+    var selectedRoomId by remember(rooms) { mutableStateOf(rooms.firstOrNull()?.id ?: 0) }
+    var selectedMonitorId by remember(monitors) { mutableStateOf(monitors.firstOrNull()?.id ?: 0) }
+    var totalSlots by remember(rooms) { mutableStateOf((rooms.firstOrNull()?.capacity ?: 20).toString()) }
 
     FitGymDialogPanel(onDismiss = onDismiss) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text(stringResource(R.string.admin_create_schedule), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
                     value = classItem.name,
@@ -865,6 +1253,26 @@ private fun CreateScheduleDialog(
                     modifier = Modifier.fillMaxWidth(),
                     readOnly = true,
                     label = { Text(stringResource(R.string.admin_schedule_class)) }
+                )
+                AdminPickerField(
+                    label = stringResource(R.string.admin_schedule_room),
+                    value = rooms.firstOrNull { it.id == selectedRoomId }?.let { "${it.name} (${it.capacity})" }
+                        ?: stringResource(R.string.admin_select_room),
+                    options = rooms.map { it.id to "${it.name} (${it.capacity})" },
+                    onSelected = { roomId ->
+                        selectedRoomId = roomId
+                        rooms.firstOrNull { it.id == roomId }?.let { totalSlots = it.capacity.toString() }
+                    }
+                )
+                AdminPickerField(
+                    label = stringResource(R.string.admin_schedule_monitor),
+                    value = monitors.firstOrNull { it.id == selectedMonitorId }?.let {
+                        listOf(it.fullName, it.specialty).filter(String::isNotBlank).joinToString(" · ")
+                    } ?: stringResource(R.string.admin_select_monitor),
+                    options = monitors.map {
+                        it.id to listOf(it.fullName, it.specialty).filter(String::isNotBlank).joinToString(" · ")
+                    },
+                    onSelected = { selectedMonitorId = it }
                 )
 
                 OutlinedTextField(
@@ -891,6 +1299,13 @@ private fun CreateScheduleDialog(
                     label = { Text(stringResource(R.string.admin_schedule_duration)) },
                     placeholder = { Text("60") }
                 )
+                OutlinedTextField(
+                    value = totalSlots,
+                    onValueChange = { totalSlots = it.filter(Char::isDigit) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.admin_schedule_total_slots)) }
+                )
                 Text(
                     text = stringResource(R.string.admin_schedule_defaults_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -905,7 +1320,17 @@ private fun CreateScheduleDialog(
                         Text(stringResource(R.string.cancel))
                     }
                     Button(
-                        onClick = { onCreate(classItem.id, date, startTime, durationMinutes.toIntOrNull() ?: 0) },
+                        onClick = {
+                            onCreate(
+                                classItem.id,
+                                date,
+                                startTime,
+                                durationMinutes.toIntOrNull() ?: 0,
+                                selectedMonitorId,
+                                selectedRoomId,
+                                totalSlots.toIntOrNull() ?: 0
+                            )
+                        },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                     ) {
@@ -918,67 +1343,97 @@ private fun CreateScheduleDialog(
 
 @Composable
 private fun CreateClassDialog(
+    classItem: AdminClassItem? = null,
     onDismiss: () -> Unit,
-    onCreate: (String, String, Uri?) -> Unit
+    onSave: (String, String, Uri?) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var name by remember(classItem?.id) { mutableStateOf(classItem?.name.orEmpty()) }
+    var description by remember(classItem?.id) { mutableStateOf(classItem?.description.orEmpty()) }
+    var imageUri by remember(classItem?.id) { mutableStateOf<Uri?>(null) }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         imageUri = uri
     }
 
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { onCreate(name, description, imageUri) }) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-        title = { Text(stringResource(R.string.admin_create_class)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.admin_class_name)) }
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.admin_class_description)) }
-                )
-                TextButton(onClick = { imagePicker.launch("image/*") }) {
+    FitGymDialogPanel(onDismiss = onDismiss) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(18.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (imageUri == null) stringResource(R.string.admin_pick_image)
-                        else stringResource(R.string.admin_change_image)
+                        stringResource(if (classItem == null) R.string.admin_create_class else R.string.admin_edit_class),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
+                    Text(stringResource(R.string.admin_class_dialog_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
-                imageUri?.let {
-                    SubcomposeAsyncImage(
-                        model = it,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .size(160.dp),
-                        loading = {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
+            }
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.admin_class_name)) }
+            )
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                label = { Text(stringResource(R.string.admin_class_description)) }
+            )
+            Button(
+                onClick = { imagePicker.launch("image/*") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text(
+                    if (imageUri == null && classItem?.imageUrl.isNullOrBlank()) stringResource(R.string.admin_pick_image)
+                    else stringResource(R.string.admin_change_image)
+                )
+            }
+            val preview = imageUri ?: classItem?.imageUrl?.takeIf { it.isNotBlank() }?.let(Uri::parse)
+            preview?.let {
+                SubcomposeAsyncImage(
+                    model = it,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .size(160.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)),
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
-                    )
-                }
+                    }
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) { Text(stringResource(R.string.cancel)) }
+                Button(
+                    onClick = { onSave(name, description, imageUri) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+                ) { Text(stringResource(R.string.save)) }
             }
         }
-    )
+    }
 }
 
 private fun adminScheduleDurationMinutes(startTime: String, endTime: String): Int {
@@ -1073,7 +1528,8 @@ private fun AdminClassCard(classItem: AdminClassItem) {
 @Composable
 private fun AdminUserRow(
     user: AdminUserItem,
-    onToggleActive: (() -> Unit)?
+    onToggleActive: (() -> Unit)?,
+    onCreateNotification: (() -> Unit)? = null
 ) {
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -1106,27 +1562,245 @@ private fun AdminUserRow(
 
             HorizontalDivider()
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = stringResource(R.string.admin_role_value, user.role.uppercase()),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
+                )
+                if (user.createdAt.isNotBlank()) {
                     Text(
-                        text = stringResource(R.string.admin_role_value, user.role.uppercase()),
+                        text = stringResource(R.string.admin_created_value, user.createdAt.take(10)),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp
                     )
-                    if (user.createdAt.isNotBlank()) {
-                        Text(
-                            text = stringResource(R.string.admin_created_value, user.createdAt.take(10)),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp
-                        )
+                }
+            }
+
+            if (onCreateNotification != null || onToggleActive != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    onCreateNotification?.let {
+                        Button(
+                            onClick = it,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.admin_send_user_notification))
+                        }
+                    }
+                    onToggleActive?.let {
+                        Button(
+                            onClick = it,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (user.active) Color(0xFFFDE2E2) else Color(0xFFDDF7E8),
+                                contentColor = if (user.active) Color(0xFF991B1B) else Color(0xFF166534)
+                            )
+                        ) {
+                            Text(
+                                if (user.active) stringResource(R.string.admin_deactivate_user)
+                                else stringResource(R.string.admin_activate_user)
+                            )
+                        }
                     }
                 }
-                onToggleActive?.let {
-                    Switch(checked = user.active, onCheckedChange = { it() })
+            }
+        }
+    }
+}
+
+private data class AdminUserForm(
+    val nombre: String,
+    val apellidos: String,
+    val email: String,
+    val password: String,
+    val role: String,
+    val active: Boolean,
+    val phone: String,
+    val age: Int,
+    val weightKg: Double,
+    val heightCm: Double,
+    val notificationsEnabled: Boolean,
+    val language: String,
+    val monitorSpecialty: String,
+    val monitorPhone: String
+)
+
+@Composable
+private fun CreateUserDialog(
+    onDismiss: () -> Unit,
+    onCreate: (AdminUserForm) -> Unit
+) {
+    var nombre by remember { mutableStateOf("") }
+    var apellidos by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var role by remember { mutableStateOf("cliente") }
+    var active by remember { mutableStateOf(true) }
+    var phone by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
+    var weightKg by remember { mutableStateOf("") }
+    var heightCm by remember { mutableStateOf("") }
+    var notificationsEnabled by remember { mutableStateOf(true) }
+    var language by remember { mutableStateOf("ES") }
+    var monitorSpecialty by remember { mutableStateOf("") }
+    var monitorPhone by remember { mutableStateOf("") }
+    val roles = listOf("cliente", "admin", "monitor")
+    val languages = listOf("ES", "EN", "DE", "PT")
+
+    FitGymDialogPanel(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Person, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.admin_create_user), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+            OutlinedTextField(value = nombre, onValueChange = { nombre = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.first_name)) })
+            OutlinedTextField(value = apellidos, onValueChange = { apellidos = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.last_name)) })
+            OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.email)) })
+            OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.password)) })
+            AdminPickerField(
+                label = stringResource(R.string.admin_role),
+                value = role.uppercase(),
+                options = roles.mapIndexed { index, value -> index to value.uppercase() },
+                onSelected = { role = roles[it] }
+            )
+            OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.phone)) })
+
+            if (role == "cliente") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(value = age, onValueChange = { age = it.filter(Char::isDigit) }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(stringResource(R.string.profile_age)) })
+                    OutlinedTextField(value = weightKg, onValueChange = { weightKg = it.filter { c -> c.isDigit() || c == '.' } }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(stringResource(R.string.profile_weight)) })
+                    OutlinedTextField(value = heightCm, onValueChange = { heightCm = it.filter { c -> c.isDigit() || c == '.' } }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(stringResource(R.string.profile_height)) })
+                }
+            }
+
+            if (role == "monitor") {
+                OutlinedTextField(value = monitorSpecialty, onValueChange = { monitorSpecialty = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.admin_monitor_specialty)) })
+                OutlinedTextField(value = monitorPhone, onValueChange = { monitorPhone = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.admin_monitor_phone)) })
+            }
+
+            AdminPickerField(
+                label = stringResource(R.string.language),
+                value = language,
+                options = languages.mapIndexed { index, value -> index to value },
+                onSelected = { language = languages[it] }
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.admin_user_active))
+                Switch(checked = active, onCheckedChange = { active = it })
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.notifications))
+                Switch(checked = notificationsEnabled, onCheckedChange = { notificationsEnabled = it })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) { Text(stringResource(R.string.cancel)) }
+                Button(
+                    onClick = {
+                        onCreate(
+                            AdminUserForm(
+                                nombre = nombre,
+                                apellidos = apellidos,
+                                email = email,
+                                password = password,
+                                role = role,
+                                active = active,
+                                phone = phone,
+                                age = age.toIntOrNull() ?: 0,
+                                weightKg = weightKg.toDoubleOrNull() ?: 0.0,
+                                heightCm = heightCm.toDoubleOrNull() ?: 0.0,
+                                notificationsEnabled = notificationsEnabled,
+                                language = language,
+                                monitorSpecialty = monitorSpecialty,
+                                monitorPhone = monitorPhone
+                            )
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+                ) { Text(stringResource(R.string.save)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CreateNotificationDialog(
+    user: AdminUserItem,
+    onDismiss: () -> Unit,
+    onCreate: (String, String) -> Unit
+) {
+    var title by remember(user.id) { mutableStateOf("") }
+    var message by remember(user.id) { mutableStateOf("") }
+
+    FitGymDialogPanel(onDismiss = onDismiss) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Notifications, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.admin_create_notification),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = user.fullName.ifBlank { user.email },
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.admin_notification_title)) }
+            )
+            OutlinedTextField(
+                value = message,
+                onValueChange = { message = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                label = { Text(stringResource(R.string.admin_notification_message)) }
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = { onCreate(title, message) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text(stringResource(R.string.admin_send_notification))
                 }
             }
         }

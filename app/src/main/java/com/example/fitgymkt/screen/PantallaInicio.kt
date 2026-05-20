@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SelfImprovement
@@ -74,16 +75,17 @@ fun PantallaInicio(
     val repository = remember(context) { FitGymRepository(context) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var refreshKey by remember { mutableIntStateOf(0) }
     var horasEntrenamiento by remember { mutableIntStateOf(0) }
     var minutosEntrenamiento by remember { mutableIntStateOf(30) }
 
-    val homeData by produceState<HomeData?>(initialValue = null, userId) {
+    val homeData by produceState<HomeData?>(initialValue = null, userId, refreshKey) {
         value = withContext(Dispatchers.IO) { repository.getHomeData(userId = userId) }
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { FitGymSnackbarHost(snackbarHostState) },
         topBar = {
             FitGymTopBar(
                 unreadCount = unreadNotifications,
@@ -115,6 +117,10 @@ fun PantallaInicio(
 
         val data = homeData!!
         val nextClass = data.todayClasses.firstOrNull()
+        val noClassesMessage = stringResource(R.string.no_classes_available_now)
+        val showNoClassesDisclaimer: () -> Unit = {
+            scope.launch { snackbarHostState.showSnackbar(noClassesMessage) }
+        }
 
         Column(
             modifier = Modifier
@@ -130,9 +136,17 @@ fun PantallaInicio(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            HeroSiguienteClase(nextClass = nextClass, onVerClases = alIrAClases)
+            HeroSiguienteClase(
+                nextClass = nextClass,
+                onVerClases = if (nextClass != null) alIrAClases else showNoClassesDisclaimer
+            )
 
             Spacer(modifier = Modifier.height(18.dp))
+
+            if (nextClass == null) {
+                NoClassesDisclaimer()
+                Spacer(modifier = Modifier.height(18.dp))
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -140,9 +154,10 @@ fun PantallaInicio(
             ) {
                 CardInicioAccion(
                     titulo = stringResource(R.string.book_class),
-                    subtitulo = stringResource(R.string.see_classes),
+                    subtitulo = if (nextClass != null) stringResource(R.string.see_classes) else stringResource(R.string.no_classes_available_short),
                     icono = Icons.Default.DateRange,
-                    onClick = alIrAClases,
+                    onClick = if (nextClass != null) alIrAClases else showNoClassesDisclaimer,
+                    enabled = nextClass != null,
                     modifier = Modifier.weight(1f)
                 )
                 CardInicioAccion(
@@ -211,9 +226,10 @@ fun PantallaInicio(
                             repository.registerWorkout(userId, (horasEntrenamiento * 60) + minutosEntrenamiento)
                         }) {
                             is ActionResult.Success -> {
-                                snackbarHostState.showSnackbar(result.message)
                                 horasEntrenamiento = 0
                                 minutosEntrenamiento = 30
+                                refreshKey++
+                                snackbarHostState.showSnackbar(result.message)
                             }
                             is ActionResult.Error -> snackbarHostState.showSnackbar(result.message)
                         }
@@ -290,7 +306,7 @@ private fun HeroSiguienteClase(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = if (nextClass != null) "${nextClass.startTime} - ${nextClass.roomName}" else stringResource(R.string.see_classes),
+                    text = if (nextClass != null) "${nextClass.startTime} - ${nextClass.roomName}" else stringResource(R.string.no_classes_available_now),
                     color = Color.White.copy(alpha = 0.72f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -303,10 +319,49 @@ private fun HeroSiguienteClase(
                     ),
                     shape = RoundedCornerShape(18.dp)
                 ) {
-                    Text(stringResource(R.string.book_class))
+                    Text(if (nextClass != null) stringResource(R.string.book_class) else stringResource(R.string.understood))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                    Icon(
+                        if (nextClass != null) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Default.Info,
+                        contentDescription = null
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoClassesDisclaimer() {
+    FitGymPanel(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.no_classes_available_title),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = stringResource(R.string.no_classes_available_now),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f),
+                    fontSize = 13.sp
+                )
             }
         }
     }
@@ -414,6 +469,7 @@ private fun CardInicioAccion(
     subtitulo: String,
     icono: ImageVector,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier
 ) {
     androidx.compose.material3.Card(
@@ -421,7 +477,8 @@ private fun CardInicioAccion(
         shape = RoundedCornerShape(24.dp),
         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        onClick = onClick
+        onClick = onClick,
+        enabled = enabled
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Box(

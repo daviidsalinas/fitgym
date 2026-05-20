@@ -6,7 +6,14 @@ data class AdminDashboardData(
     val totalClasses: Int,
     val todaySchedules: Int,
     val todayReservations: Int,
+    val notifications: List<AdminDashboardNotification>,
     val recentUsers: List<AdminUserItem>
+)
+
+data class AdminDashboardNotification(
+    val title: String,
+    val message: String,
+    val type: String
 )
 
 data class AdminUserItem(
@@ -29,14 +36,29 @@ data class AdminClassItem(
 
 data class AdminScheduleItem(
     val id: Int,
+    val classId: Int,
     val className: String,
     val date: String,
     val startTime: String,
     val endTime: String,
+    val roomId: Int,
     val roomName: String,
+    val monitorId: Int,
     val monitorName: String,
     val totalSlots: Int,
     val reservedSlots: Int
+)
+
+data class AdminRoomItem(
+    val id: Int,
+    val name: String,
+    val capacity: Int
+)
+
+data class AdminMonitorItem(
+    val id: Int,
+    val fullName: String,
+    val specialty: String
 )
 
 data class AdminBookingItem(

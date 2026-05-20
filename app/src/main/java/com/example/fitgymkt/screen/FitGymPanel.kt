@@ -21,7 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -34,6 +36,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.SnackbarData
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -198,6 +203,65 @@ private fun RowScope.FitGymNavItem(
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(label, color = contentColor, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+    }
+}
+
+@Composable
+fun FitGymSnackbarHost(snackbarHostState: SnackbarHostState) {
+    SnackbarHost(hostState = snackbarHostState) { data ->
+        FitGymSnackbar(data)
+    }
+}
+
+@Composable
+private fun FitGymSnackbar(data: SnackbarData) {
+    val isError = data.visuals.message.contains("no ", ignoreCase = true) ||
+            data.visuals.message.contains("error", ignoreCase = true)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = if (isError) Color(0xFF2A1114) else ColoresFit.NegroSuave,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isError) ColoresFit.Rojo.copy(alpha = 0.35f) else ColoresFit.Naranja.copy(alpha = 0.45f)
+        ),
+        tonalElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(
+                        if (isError) ColoresFit.Rojo.copy(alpha = 0.18f) else ColoresFit.Naranja.copy(alpha = 0.18f),
+                        RoundedCornerShape(16.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isError) Icons.Default.Error else Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = if (isError) ColoresFit.Rojo else ColoresFit.Naranja
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isError) stringResource(R.string.notice) else stringResource(R.string.done),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = data.visuals.message,
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 13.sp
+                )
+            }
+        }
     }
 }
 
